@@ -1,0 +1,370 @@
+
+              FCheck: The filesystem baseline integrity checker.
+                    Copyright (C) 1996 Michael A. Gumienny
+
+
+      Please send your comments, updates, improvements, wishes and
+                        bug reports for fcheck to:
+
+                           Michael A. Gumienny
+                           gumienny@hotmail.com
+
+     ###################################################################
+
+
+
+  Note:
+  FCheck operation is essentially identical for both UNIX and Win32
+  platforms, the only difference is the inclusion of a drive letter.
+ 
+  (DOS Note)
+  Please note that all DOS platform path names are entered with a UNIX style
+  forward slash "/", I.E. "C:/", "D:/games/warped", and "C:/Windows". Any
+  number of drives may be included, and drive letters can be omitted for any
+  actions on the drive that FCheck is installed on, (I.E. "/Windows", and 
+  "/Windows/system" can be used without a drive letter pre-pended to the path).
+
+
+
+  Requirements:
+  =============
+
+  FCheck was initially developed for HP/UX and Sun Solaris systems running
+  PERL 5.x. It should run on any platform that supports PERL scripts with
+  no difficulties. FCheck has been successfully tested and operated by the
+  author on the following systems:
+
+        AIX
+        BSD and variants (BSDi, NetBSD, FreeBSD, OpenBSD)
+        HP/UX
+        Linux
+        SCO
+        Solaris
+        SunOS
+        Windows 95/98/NT
+        Win3.x (See note)
+
+  Note: It is possible to operate versions of FCheck prior to 2.07.45 on 16
+  bit DOS platforms by carefull selection of directory names and slight
+  modification to the script. Contact the author if a more detailed
+  explanation is desired.
+  
+
+
+
+     ###################################################################
+
+
+
+  Installing FCheck:
+  ==================
+
+  1.  Read the README and Release Notes for the latest FCheck information.
+
+      FCheck is distributed as a tarred and gzip'ed file for UNIX systems.
+      The same version is also available as a Zipped archive for any DOS
+      platforms that can not uncompress the UNIX version.
+
+      Because FCheck can be ran on any platform that supports PERL and long
+      filenames (DOS or UNIX). No slick installation scripts are included.
+
+
+
+  2.  Decide what directories you are going to install FCheck in and where to
+      keep its database files.
+
+      The most commonly used UNIX directories are "/usr/local/fcheck" for the
+      executable and configuration files, and "/usr/local/fcheck/fcheck.dbf"
+      for the database storage area.
+
+      (DOS Note)
+      You could use a directory called "C:/FCheck" for the executable and
+      configuration files, and "C:/FCheck/fcheck.dbf" for the database storage
+      area on DOS based platforms, but anything is acceptable.
+
+
+  3.  Copy the FCheck executable (FCheck) and configuration file (FCheck.cfg)
+      from your downloaded distribution to the location selected in the last
+      item (2 above) to the machine on which you wish to install and run the
+      product.
+
+
+
+  4.  Modify the FCheck executable to reflect appropriate paths selected for
+      your system. Find the "User modifiable variable definitions" section
+      (shown below) and modify it to reflect your site requirements as needed
+      by the following:
+
+      a) Ensure the variable ($config="/usr/local/etc/fcheck.cfg" or
+         $config="C:/FCheck/FCheck.cfg") depending on your platform is set
+         properly in the executable (FCheck) if you have renamed your
+         configuration file or install path to anything other than the
+         included default FCheck.cfg.
+
+   ##########################################################################
+   #                                                                        #
+   #                 User modifiable variable definitions:                  #
+   #                                                                        #
+   ##########################################################################
+   $config="/usr/local/etc/fcheck.conf";
+   # If you have a Win32 system, include the Drive letter like this example
+   $config="C:/FCheck/FCheck.cfg"
+
+
+
+       b) Note: This can be over-ridden by passing the '-f' flag and the
+          complete path and name of an alternate configuration file.
+
+
+
+     ###################################################################
+
+
+
+  Configure FCheck:
+  =================
+
+  5.  Read the included README for an overview of FCheck fundamentals.
+
+      The configuration file is comprised of only seven reserved keywords that
+      are used to pass information to FCheck.
+
+      Those keywords are:
+
+        - Directory
+        - Exclusion
+        - DataBase
+        - Logger
+        - Hostname
+        - System
+        - TimeZone
+
+      These keyword definitions can be used multiple times within the
+      configuration file to pass your definitions as follows:
+
+                Keyword = Your definition of this variable
+
+
+
+      Keyword Definitions:
+      ====================
+
+      Directory:
+      ----------
+        Used to define all directories that are to be monitored by FCheck. To
+        monitor the "/etc" directory, the line is entered as follows:
+
+                Directory = /etc
+                # Win32 systems would include a like as follows:
+                Directory = C:/etc
+
+        To tell FCheck to monitor directories recursively (I.E. /etc and all
+        directories below it, excluding symbolic links) is accomplished by
+        appending a "/" to the end of a definition.
+
+                Directory = /etc/
+                # Win32 systems include the drive letter as follows:
+                Directory = C:/etc/
+
+        The preceding entry would monitor the "/etc/" directories
+        recursively.
+
+        The one exception to this recursive rule is a root directory entry.
+
+                Directory = /
+                # Win32 systems include the drive letter as follows:
+                Directory = C:/
+
+        This entry will NOT return recursive results, but will check only the
+        defined top-level root directory. Individual subdirectories will have
+        to be defined separately with multiple "Directory =" entries. This is
+        a residual effect of clean UNIX systems not utilizing their top level
+        directory for anything other than the kernel.
+
+
+
+      Exclusion:
+      ----------
+        Used to define files or directories to pass over when verifying
+        integrity.
+
+        If your system contains active log files that are updated frequently
+        (who doesn't). You would need to use the "Exclusion =" definition to
+        prevent FCheck from monitoring that file or directory tree.
+
+                Exclusion = /var/adm/
+                # Win32 systems include the drive letter as follows:
+                Exclusion = C:/Windows/Temporary Internet Files/
+
+        The above example would pass over all of the actively updated log
+        files on a typical UNIX (or DOS) system.
+
+        Note that the appended "/" IS required should the excluded file be a
+        directory name. Otherwise FCheck will attempt to interpret the
+        exclusion as a filename and not a directory.
+
+
+
+      File:
+      ---------
+        Used to convey the full path and filename that FCheck should utilize
+
+
+
+      DataBase:
+      ---------
+        Used to convey the full path and filename that FCheck should utilize
+        to store all of its baseline generated files. As pointed out elsewhere
+        in this document the database filename that you use could be any
+        existing directory and filename of your own desire.
+
+                Database = /usr/local/fcheck/fcheck.dbf
+                # Win32 systems include the drive letter as follows:
+                Database = C:/FCheck/FCheck.dbf
+
+        The above example would utilize the "/usr/local/fcheck/db" directory
+        for storage of baseline snapshot databases, and "C:/Fcheck/FCheck.dbf"
+        on a DOS system.
+
+
+
+      Logger:
+      -------
+        Used to convey the executable file that should be used to transmit
+        messages to your particular systems log files. It is activated by use
+        of the "-l" flag.
+
+                Logger = /usr/bin/logger
+
+        The Logger keyword could also be used to send messages to an attached
+        printer if log files are not readily available by use of the
+        following example syntax:
+
+                Logger = /usr/bin/lpr
+
+
+
+      Hostname:
+      ---------
+        This keyword is used to pass the systems hostname should FCheck not
+        be able to determine the hostname automatically. This will be a
+        common issue on Windows 95/98 platforms without a 'hostname'
+        function, but should not hinder UNIX operation. You should use the
+        environment variable 'HOSTNAME=' within UNIX but if you cannot do
+        this, then the hostname can be set by use of this keyword.
+
+
+
+      System:
+      -------
+        By default, FCheck is designed to assume that it is operating on a
+        UNIX platform. On some rare occasions it is possible that FCheck may
+        become confused and assume that it is on a DOS platform. If this
+        situation happens to you, then you can use the System keyword like
+        this example:
+
+                System = UNIX
+
+        Currently FCheck only runs on UNIX by default and 32bit DOS platforms
+        that support long filenames and PERL. So "DOS" is the only valid
+        entry that can be used for this keywords definition. Any other entry
+        will force FCheck to assume it is operating on a UNIX platform.
+
+
+
+      TimeZone:
+      ---------
+        This is an overide of the environment variable TZ. It in no way
+        effects the operation of FCheck other than how time is presented to
+        the end user.
+
+                TimeZone = EST5EDT
+
+
+
+      Signature:
+      ----------
+        This is used only if you require/desire a hash signature to also be
+        generated for each of the files by use of the '-s' flag. This does not
+        allow for the granularity of individual file selection as Tripwire, but
+        allows operation to remain easier.
+
+        You may select any CRC/hash signature function that you feel secure and
+        comfortable with that is installed on your system by including the
+        'Signature' keyword along with the intended functions location in the
+        configuration file as follows:
+
+                Signature = /usr/bin/md5sum
+
+        As previously stated, you should be able to use any CRC/hash function
+        with FCheck including but not limited to, 'sum', 'cksum', and 'md5sum'
+        to name only a few of the more common functions available.
+
+        Note: Simple CRC calculations can produce identical results for files
+        that are NOT identical! Use caution and common sense on your own
+        CRC or hash selection for your reliabilty factor to remain high.
+
+
+
+  6.  Modify the default configuration file (FCheck.cfg) that has been
+      provided only as a bare bones sample starting point. Or, create your
+      own based on your own particular needs from what you have learned in
+      section five above.
+
+
+
+     ###################################################################
+
+
+
+  Running FCheck
+  ==============
+
+  (The next steps assume you are running from FCheck's directory that you
+  installed to. Change the paths and filenames as appropriate for you.)
+
+  7.  Initiate FChecks database by using the (-c)reate and (-a)ll flags as
+      follows:
+
+                ./FCheck -ca
+
+      You can include the -(v)erbose flag if you would like to see the
+      progress of FCheck.
+
+
+
+  8.  Set up FCheck to scan your system for any modifications made since the
+      last baseline snapshot (FCheck -ca) that you have.  The best method of
+      operation is through an unattended crontab entry with the least amount
+      of time possible between scans.
+
+      You can also run FCheck interactively from the command line or cron by
+      use of the following (-a)ll flag example:
+
+                ./FCheck -a
+
+
+
+  Congratulations! If you successfully completed these steps, then FCheck is
+  set and ready to go.
+
+
+
+     ###################################################################
+
+
+
+  Conclusions:
+  ============
+
+  FCheck can be ran with very little time required between runs, dependent
+  only upon the amount of monitored resources and your CPUs speed, making it
+  very difficult to circumvent.
+
+  Once a change has been detected, you may wish to reinitialize the baseline
+  database (fcheck -ac) to prevent FCheck from reporting the change again. If
+  you are logging to a printer, this is a very good idea to save paper!
+
+  If you are using NT/Win2000, then try running FCheck with the "at" command
+  use any shareware "cron" style command if "at" is not available.
+

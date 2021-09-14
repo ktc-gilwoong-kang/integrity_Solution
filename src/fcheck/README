@@ -1,0 +1,322 @@
+
+              FCheck: The filesystem baseline integrity checker.
+                    Copyright (C) 1996 Michael A. Gumienny
+
+
+      Please send your comments, updates, improvements, wishes and
+                        bug reports for fcheck to:
+
+                           Michael A. Gumienny
+                           gumienny@hotmail.com
+
+     ###################################################################
+   This program is free software; you can redistribute it and/or modify it
+   under the terms of the GNU General Public License as published by the
+   Free Software Foundation; either version 2 of the License, or (at your
+   option) any later version.
+
+   This program is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
+   Public License for more details.
+
+   You should have received a copy of the GNU General Public License along
+   with this program; if not, write to:
+
+             Free Software Foundation, Inc.
+             59 Temple Place - Suite 330
+             Boston, MA 02111-1307, USA.
+
+        Or you can find the full GNU GPL online at: http://www.gnu.org
+     ###################################################################
+
+
+
+Files:
+Your distribution should contain the following seven (5) files:
+
+    README                      Your reading this file.
+    fcheck                      PERL script fcheck.
+    fcheck.cfg                  Required configuration file.
+    license                     GNU GPL License agreement.
+    install                     Installation guide for all platforms.
+
+This documentation contains the following sections.
+
+    Files:                      This sections you are reading now. Contains
+                                listing of files you should have included in
+                                your distribution.
+    History behind FCheck:      A brief introduction as to why FCheck was
+                                written.
+    FCheck Features:            What FCheck cna do for you.
+    Changelog:                  Small, because FCheck was really written a
+                                few years ago but is now being added to.
+    Operation:                  A brief intro to normal flag usage when you
+                                run FCheck.
+    Closing Hints:              A few tips from the author from real time
+                                usage experience.
+    Mini FAQ:                   Questions that have filtered back to the
+                                author concerning operational problems.
+
+Complete detailed configuration and setup procedures can be found in the
+install.unix and install.win documents also included.
+
+
+
+     ###################################################################
+
+
+
+History behind FCheck:
+Fcheck was developed out of necessity from a situation when my company
+outsourced its UNIX administrators. Originally intended for monitoring the
+administrators whimsical changes to the systems, it grew into a full-blown
+security tool.
+
+Being the person that went to the meetings and responsible for the systems
+(I.E. the guy with his head on the block), not knowing that a complete
+filesystem had been removed, happened only once. My "staff" had forgotten to
+notify me of the change, along with several other changes. I needed a way to
+monitor the system for any modifications and would report back to me
+immediately to stay abreast of whimsical changes. Thus, FCheck was born. 
+
+FCheck grew into an overnight success, even though I did not see its complete
+potential at first. When a surprise Security Audit Team arrived, the full
+potential was recognized.
+
+Having several tools already in place to satisfy the auditors demands, they
+thought they had us when a baseline snapshot of the system was requested.
+Expecting to hear that we had no such tool in place, they were eager to learn
+more about FCheck and its capabilities. 
+
+
+
+     ###################################################################
+
+
+
+FCheck Features:
+Essentially, FCheck has the ability to monitor directories, files or complete
+filesystems for any additions, deletions, and modifications. It is configurable
+to exclude active log files, and can be ran as often as needed from the command
+line or cron making it extremely difficult to circumvent. It is written in
+standard PERL and requires no special outside library modules.
+
+Currently there are a few 'Tripwire' style baseline system security tools and
+most are purchasable with licensing agreements, etc. Personally I hate software
+that you must purchase so this is distributed under the GNU license. (I.E. It's
+yours to play with, but keep my name in it, and let me know what you modified
+so that others can share the benefits).  FCheck was further developed with the
+junior administrator in mind that do not yet understand the complex
+configuration files and operation required to run many security products.
+
+All code is written from scratch, and is owned solely by the author, but rights
+are granted for its usage under the GNU license agreement to any site that
+desires free baseline security measures. 
+
+
+
+     ###################################################################
+
+
+
+Changelog:
+See the script, it's getting big!
+
+
+Major Updates Provided in this release:
+ o Added ability to determine version of MD5 being used.
+
+ o Modified the routines that call MD5 and "file" to pipes, slight speed
+   increase and less vulnerable to shell exploits.
+
+
+Update in last release:
+ o Databases merged into one database, DATABASE= configuration keyword now
+   points to the full path and filename to use for that database.
+
+ o Added the "-h" option to look for the configuration file with the $HOSTNAME
+   environment variable appended to the end fo it. (This is useful in
+   distributed system environments.)
+
+     (Example)
+     $HOSTNAME=myhost
+     fcheck -ahf A_Config.dbf
+     Result: fcheck would use a configuration file of "A_Config.dbf.myhost" 
+
+ o Added the "-r" option to create a report suitable for email. The generated
+   report will show good, and bad integrity checks.
+
+ o Added the "-x" option to allow monitoring the "number of links", "UID",
+   "GID", and the "Major/Minor" numbers of device files.
+
+ o Added the "FILE=" keyword in the configuration file. This will allow you to
+   monitor single files, rather than entire directory contents.
+
+ o Added the "FILETYPER=" keyword in the configuration file. This needs to be
+   set if you use the "-x" option, and is what will allow you to determine
+   file types, and major/minor numbers of device files.
+
+
+   ###################################################################
+
+
+
+Operation, and Getting Started:
+Flag passing is a fairly simple process. Primarily you will be using two
+commands. One builds (or rebuilds) your baseline database files (system
+snapshots). The second runs in a scanning comparison mode.
+
+  "fcheck -ac"   Builds the baseline database.
+  "fcheck -a"    Comparison scans the system against the baseline database.
+
+For normal operation: Initially you will run fcheck by issuing the command
+"fcheck -ac" to create the initial baseline file used for comparison. Any
+runs after the creation of the basline will normally be with the flags
+"fcheck -a" to scan for any system modifications.
+
+After a scan is completed, you will probably want to have fcheck re-create its
+baseline database for the next comparison cycle. Otherwise you will be seeing
+every system modification since the last baseline re-build. In other words, run
+the "fcheck -ac" command again.
+
+(Advanced Note:)
+A more intensive system check would be accomplished by building your database
+to include GID/UID checks, directories, and CRC checks by using the following
+sample syntax:
+
+  "fcheck -cadsxlhf /usr/local/admtools/etc/fcheck.dbf.yourhost"
+
+And provide periodic integrity scans from cron by using the following sample
+syntax:
+
+  "fcheck -adsxlhf /usr/local/admtools/etc/fcheck.dbf.yourhost"
+
+
+
+     ###################################################################
+
+
+
+Closing Hints:
+I would also suggest using the "l" flag to send messages to syslog unless you
+really want to watch the output from this all the time. You could also make
+use of some log monitoring packages like CA-Unicenter, HP-Openview, or
+several other shareware alternatives including 'xlog' or even the 'pmem' Tcl/Tk
+interface that I also wrote.
+
+FCheck was ran from cron in a production environment at 10 minute intervals
+with no impact to system performance. Message logging was handled by syslog
+with the "-l" flag and imported to a commercial event monitoring package that
+monitored and displayed system logfiles, highlighting only the important
+events. A shorter duration can be obtained on smaller systems, but you must
+allow FCheck to complete its baseline comparison before re-building the
+baseline to alleviate false readings. Actual interval times will vary
+depending on how active a system you are running FCheck on.
+
+Those of you that have scanned the early code may have noticed the remote shell
+feature has been removed. I felt this offered too much temptation to open a
+security hole and was removed. Fcheck does NOT have to run as root, but it does
+need to have read permissions to each of the directories and files that you
+want to monitor.
+
+Other flags for you to play with are as follows:
+
+   -a    Automatic mode, do all directories in configuration file.
+   -c    Create a new base line database for the given directory.
+   -d    Directory names are to be monitored for changes also.
+   -f    Use alternate 'filename' as the configuration file.
+   -i    Ignore creation times, check permissions, adds, deletes only.
+   -h    Append the $HOSTNAME to the configuration filename.
+   -l    Log information to logger rather than stdout messages.
+   -r    Report mode, great for emailed status reports.
+   -s    Sign each file with a CRC/hash signature.
+   -v    Verbose mode, not used for report generation.
+   -x    eXtended unix checks, # of links, UID, GID, Major/Minor checks.
+
+
+Final Notes:
+As stated elsewhere in this README. If you have suggestions please forward
+them to me and I'll try to accommodate them. If they make sense and others have
+requested the same changes, then they may make it into the next release.
+
+* THREATS ARE IGNORED WHEN YOUR SUGGESTION DOES NOT GET WRITTEN INTO A RELEASE *
+
+This is free software and I don't make a living from it. It is also distributed
+under the terms of the GNU General Public License WITHOUT WARRANTY!
+
+
+
+     ###################################################################
+
+
+
+Mini FAQ:
+
+Q: When I try to initialize with the command "FCheck -ac" I get the following
+   error message back. Why?
+
+      FCheck: Can't find C:/Work/temp/perl/fcheck/FCheck.cfg
+      terminating...
+
+A: FCheck can't locate the configuration file that you have instructed it to
+   use. Edit the executable (FCheck) and ensure that the variable "$config="
+   is set properly to reflect your configuration files location.
+  
+
+
+Q: When I try to initialize with the command "FCheck -ac" I get the following
+   error message back. Why?
+
+      FCheck: no base file directory exist! [C:/Work/temp/perl/fcheck/data]
+      terminating...
+
+A: The directory that you have instructed FCheck to utilize to store its
+   database does not exist. Either modify the configuration file (FCheck.cfg)
+   to use an existing directory, or create the one it needs.
+
+
+
+Q: I have removed a directory "/usr/local/etc" and told FCheck to exclude it
+   from future scans with the line "Exclusion = /usr/local/etc/", now it is
+   being reported as deleted.
+
+A: But, the scanned directory does still exist in FChecks databases. After a
+   modification to any scanned area of a system. You must tell FCheck to
+   re-initialize its database (FCheck -ac) to stop this behaviour. Otherwise
+   FCheck will continue to report any changes that it has detected, including
+   the directory you told it to exclude from future scans. Once you have
+   re-initialize the databases, only then will FCheck ignore any directories
+   or files that you instructed it to exclude.
+
+
+
+Q: FCheck says "debug: (GetDir) No can do (/some_file)..." when I try to monitor
+   a file.  Does "Directory =" have to be a Directory for File Name?
+
+A: Okay, you caught me! FCheck never had any real documentation until recently
+   which means there is bound to be an error or two. Some more noticeable than
+   others.
+
+   You must use the directories name that you wish to monitor. As an option,
+   you can monitor that directory recursively by placing a "/" at the end of
+   the path ("/etc" for the immediate directory, or "/etc/" for recursive).
+
+   For you to monitor only your "/etc/passwd" you would have an entry of
+   "Directory = /etc" and then you would use several excludes such as
+   "Exclude = /etc/group", "Exclude = /etc/motd", and so on. But I think that
+   you will probably want to monitor the entire "/etc" directory for
+   changes.
+
+
+
+Q: Gzip says "decompression OK, trailing garbage ignored." When I uncompress
+   FCheck, is my tar file damaged?
+
+A: The Netscape WEB site appears to be padding GZipped files with NULLS,
+   although it does not happen to the identical Pkzipped file. As expressed in
+   the warning message, GZip ignores the trailing NULL characters with no
+   impact to the extracted tar file. If the displayed warning bothers you too
+   much, then try the Pkzipped version of FCheck as it is an identical varsion.
+
+

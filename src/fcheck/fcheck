@@ -1,0 +1,1701 @@
+#!/usr/bin/perl
+#############################################################################
+#                                                                           #
+# Copyright (C) 1996 Michael A. Gumienny                                    #
+#                                                                           #
+# This program is free software; you can redistribute it and/or modify it   #
+# under the terms of the GNU General Public License as published by the     #
+# Free Software Foundation; either version 2 of the License, or (at your    #
+# option) any later version.                                                #
+#                                                                           #
+# This program is distributed in the hope that it will be useful, but       #
+# WITHOUT ANY WARRANTY; without even the implied warranty of                #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General #
+# Public License for more details.                                          #
+#                                                                           #
+# You should have received a copy of the GNU General Public License along   #
+# with this program; if not, write to:                                      #
+#                                                                           #
+#      Free Software Foundation, Inc.                                       #
+#      59 Temple Place - Suite 330                                          #
+#      Boston, MA 02111-1307, USA.                                          #
+#                                                                           #
+# Or you can find the full GNU GPL online at: http://www.gnu.org            #
+#                                                                           #
+# Please send your comments, updates, improvements, wishes and bug reports  #
+# for fcheck to:                                                            #
+#                                                                           #
+#      Michael A. Gumienny           gumienny@hotmail.com                   #
+#                                                                           #
+#############################################################################
+
+#############################################################################
+#                                                                           #
+# File:  fcheck                                                             #
+#                                                                           #
+# Usage: fcheck [-acdfihlrsvx] [configuration file] [directory]             #
+#                                                                           #
+# $Id: fcheck,v 2.7.59 2001/03/03 02:38:26 root Exp root $                  #
+#                                                                           #
+# Description:                                                              #
+#        Used to validate creation dates of critical system files, and as   #
+#        a baseline system verification script.                             #
+#                                                                           #
+# Options:                                                                  #
+#        -a    Automatic mode, do all directories in configuration file.    #
+#        -c    Create a new base line database for the given directory.     #
+#        -d    Directory names are to be monitored for changes also.        #
+#        -f    Use alternate 'filename' as the configuration file.          #
+#        -i    Ignore creation times, check permissions, adds, deletes.     #
+#        -h    Append the $HOSTNAME to the configuration filename.          #
+#        -l    Log information to logger rather than stdout messages.       #
+#        -r    Report mode - so you can save to a file and get a positive   #
+#              record of what you have checked, even if errors go to logger #
+#        -s    Sign each file with a CRC/hash signature.                    #
+#        -v    Verbose mode, not used for report generation.                #
+#        -x    eXtended Unix checks - Nlinks, UID, GID, Major/Minor numers  #
+#                                                                           #
+# Author: Michael A. Gumienny                                               #
+#                                                                           #
+# Written: 1996                                                             #
+#                                                                           #
+#############################################################################
+
+#############################################################################
+# $Log: fcheck,v $
+# Revision 2.7.59  2001/03/03 02:38:26  root
+# Beta testers gave final thumbs up, final checkin w/ approval.
+#
+#
+# Revision 2.7.58  2001/03/01 11:24:29  root
+# This version needed some repairs to the output. CRC differences were not being
+# displayed to the screen, only to logger. No impact from this bug, FCheck still
+# flagged CRC changes, but did not display them as CRC diffs, only that a change
+# had been detected when ran in interactive mode.
+#
+#
+# Revision 2.7.57  2001/02/21 01:18:09  root
+# GNU version of MD5 sends its output backwards than high end Unix systems.
+# Added a new routines to autodetect this based on filename, md5 or md5sum.
+#
+#
+# Revision 2.7.56  2001/01/13 17:26:19  root
+# Checked in with minor cosmetic improvements.
+#
+#
+# Revision 2.7.55  2000/12/05 01:18:09  root
+# Put back exclusion routine that was in version 2.7.51. New routine did not
+# accurately exlude files/directories except for exact matches only.
+#
+#
+# Revision 2.7.54  2000/11/07 12:33:32  root
+# Added "FindDiff" routine to report the detail of what has been changed,
+# taking all guess work out of the reported lines.
+#
+# FCheck WARNING lines now report like the following:
+#    fcheck: "WARNING: [host] /bin/cron [CRCs: 3932278317 - 2003041699]"
+#          which tells you immediately that there is a variation in the CRCs.
+#
+#
+# Revision 2.7.52Beta  2000/10/15 16:50
+#  Added more features, merged in several suggestions from jim moore.
+#   (Sorry for the delay in getting this out with them.)
+#
+#  The ability to include chunks of configuration files through the CFINCLUDE
+#  directive (suggestion by John Vogtle)
+#
+#  Added the "FILE" type for checking individual files.
+#
+#  Made the database into a single file
+#
+#  Fixed bug in MD5 handling (so that it can use standard source of MD5
+#  available)
+#
+#  Added report mode, so that the report is sufficient for documentation
+#
+#  Added modes to check uid, gid, and major and minor numbers on Unix special
+#  files
+#
+#  Added ReadDB and WriteDB configuration primatives, so that the same config
+#  file could be used to generate a database that would be moved to read-only
+#  a location
+#
+#  Added check for users passing a (-s) flag to HASHFunc (otherwise the open
+#  tries to execute the file and collect its output)
+#
+#
+# Revision 2.7.51  2000/04/02 18:45:32  root
+# Final checkin for revision control of tested script
+#
+#
+# Revision 2.7.50  2000/03/11 16:10:39  root
+# Modified parsing of "logger" variable to allow user defined option flags
+#
+# Finally got around to fixing the trailing space bug in the configuration
+# file. Now the parser is less strict of the varying editors being used to
+# create configuration files.
+#
+# Todo: request have been made to register a permission problem when ran
+#       as other than root user, and can't recurse directory trees rather
+#       than terminate with an error as fcheck does now.
+#
+#
+# Revision 2.7.49  2000/03/11 15:08:04  root
+# Fixed option when told to ignore creation dates to also check file size.
+#
+# Fixed option when told to ignore diretory names (-d), when you are not
+# checking recursively and don't want to see directory Inode changes.
+#
+#
+# Revision 2.7.47  2000/02/21 02:05:18  root
+# Removed the pre-defined "-t" (tag) option used by logger to allow for user
+# defined output devices: scritps, programs, or device files.
+#
+# Typo found under permission calculations:
+#       local ($ftype) = $ftype[($mode & 0170000)>>12];
+#
+# A reported glitch with European and some US spellings for filenames that
+# contain a single quote (D'Abo) was fixed.
+#
+#
+# Revision 2.7.46  2000/01/10 23:06:22  root
+# Minor improvements and documentation efforts made.
+# Replaced uneccesary date coding to compensate epoch of January 1, 1970 GMT
+#                $year += ($year < 70) ? 2000 : 1900;
+# with a simpler
+#                $year += 1900;
+#
+# Revision 2.7.45  1999/10/19 17:40:22  root
+# Added optional file hash/CRC signature abilities.
+#
+# Added support for multiple configuration files by passing optional name.
+#
+# Updated documentation.
+#
+# Todo: Minor issue. Need to check string parsing from configuration file.
+#       Spaces on end of string confuse current parser logic.
+#
+#
+# Revision 2.7.43  1999/10/08 20:57:34  root
+# Added optional CRC/hash signature ability
+#
+#
+# Revision 2.7.42  1999/09/21 00:55:14  root
+# Experimental stages, checked in.
+#
+#
+# Revision 2.7.40  1999/09/14 02:18:01  root
+# Added suggestion by Ian Thurlbeck <ian@stams.strath.ac.uk> to replace the
+# lookup intensive arrays with associative arrays to speed things along.
+#
+# Removed a few un-needed lines and routines left in from previos edits.
+#
+# Updated documentation.
+#
+#
+# Revision 2.7.38  1999/08/16 22:16:37  root
+# Enclosed logger string in quotes. RedHat Linux logger choked without them.
+# Fixed spelling errors, etc in documentation.
+#
+#
+# Revision 2.7.37  1999/08/04 22:51:00  root
+# Minor changes to permissions routines.
+#
+#
+# Revision 2.7.34  1999/07/29 01:11:13  root
+# Now Works under windows, added internal ls type function.
+#
+#
+# Revision 2.6.27  1999/07/24 14:49:04  root
+# Initial checkin for migration to DOS PERL
+#
+
+#############################################################################
+#                                                                           #
+#                 User modifiable variable definitions:                     #
+#                                                                           #
+#############################################################################
+# This should be passed through the command line, but hard coding still works
+$config="/Users/gilwoongkang/personalLibrary/tmax/supervm-cc/integrity/src/fcheck/fcheck.cfg";
+#$config="C:/Work/fcheck/fcheck.cfg";
+
+#############################################################################
+#                                                                           #
+#      Non-User modifiable variable definitions: (DO NOT MODIFY THESE!)     #
+#                                                                           #
+#############################################################################
+undef($Auto);
+undef($Verbose);
+undef($BaseLine);
+undef($CreateDate);
+undef($DirCheck);
+undef($Logging);
+undef($DOS);
+undef($Hash);
+undef($XTended);
+undef($Reporting);
+undef($ReportFail);
+undef($ALogger);
+undef($ReadDB);
+undef($WriteDB);
+undef($GnuHASHOut);
+$XTended=0;
+$Reporting=0;
+$ReportFail=0;
+($Me)=split("/", reverse($0));
+($Me)=split(" ", reverse($Me));
+$rcfflag=1;
+
+#############################################################################
+# &Help;                                                                    #
+# This routine explains brief usage syntax to STDOUT. The program is then   #
+#  terminated.                                                              #
+#############################################################################
+sub Help
+    {
+    open(ME, "<$0");
+    for ($i=0; $i<38; $i++) { $_=<ME>; }
+    close(ME);
+
+    $_ = substr($_, 15, 18);
+
+    printf("Usage:\t%s [-acdfhilrsvx] [config filename] [directory]\n", $Me);
+    printf("\tUsed to validate creation dates of critical system files.\n\n");
+    printf("\tVersion: %s\n\n", $_);
+    printf("\tOptions:\n");
+    printf("\t-a\tAutomatic mode, do all directories in configuration file.\n");
+    printf("\t-c\tCreate base-line database.\n");
+    printf("\t-d\tDirectory names are to be monitored for changes also.\n");
+    printf("\t-f\tUse alternate 'config filename' to initiate from.\n");
+    printf("\t-h\tAppend the \$HOSTNAME to the configuration filename.\n");
+    printf("\t-i\tIgnore create dates, check permissions, additions, deletions.\n");
+    printf("\t-l\tLog information to logger rather than stdout messages.\n");
+    printf("\t-r\tReporter mode that lists individual files too.\n");
+    printf("\t-s\tSign each file with a CRC/hash signature.\n");
+    printf("\t-v\tVerbose mode.\n");
+    printf("\t-x\teXtended Unix checks - Nlinks, UID, GID, Major/Minor numbers.\n\n");
+    exit(0);
+    }
+
+
+
+#############################################################################
+# &DoConfig($config_file,$recurse,$RecurseDepth);                           #
+#############################################################################
+sub DoConfig
+    {
+    local($CFFile,$godeep,$CLevel)=@_;
+    local($KeyWord, $Variable);
+    local(*CONFIG);
+    if($Verbose)
+        { printf("debug: (DoConfig) Drawing Config from %s\n", $CFFile); }
+    open(CONFIG, "<$CFFile") || &Error("Can't find configuration file $CFFile");
+    $CLevel++;
+    $CTemp="\t" x $CLevel ;
+    $CString="$CTemp"."$CFFile";
+    push(@ConfigTree,$CString);
+    while(<CONFIG>)
+        {
+        next if /^#/ || /^\n/;
+        chop;
+        ($KeyWord, $Variable)=m/(\w+)\s*=\s*(.*)/;
+        # Fast hack to remove trailing spaces...
+        $Variable =~ s/\s*$//;
+        $KeyWord = &toupper($KeyWord);
+        if ( $Verbose)
+            {printf("debug: Key:\"%s\"\tValue:\"%s\"\n", $KeyWord, $Variable);}
+        # Allow config files to be modular, included from one another
+        # This means that the last definition wins
+        if ( $KeyWord eq "CFINCLUDE")
+            {
+            if (!(-r  $Variable && -s $Variable)) { &Error("CFINCLUDE $Variable in config file NOT readable or zero length"); }
+            if (-f "$Variable" && ($godeep)) { &DoConfig("$Variable", $godeep,$CLevel); }
+            }
+        if ( $KeyWord eq "DIRECTORY") { push(@CheckDir, $Variable); }
+        if ( $KeyWord eq "FILE") { push(@CheckFile, $Variable); }
+        if ( $KeyWord eq "EXCLUSION")
+            {
+            if($DOS) { $Variable = &toupper($Variable); }
+            $TVariable="$Variable";
+            push(@ExcludeMatrix, $TVariable);
+            }
+        if ( $KeyWord eq "LOGGER")
+            {
+            ($Logger, $LoggerFlags) = $Variable =~ m/(\S+)\s* s*(.*)\s*/;
+            (@LogFlags)=split(' ',$LoggerFlags);
+            if ( $Verbose)
+                { printf("debug: Corrected LOGGER value:\"%s\"\ndebug: Corrected LOGGER FLAGs:\"%s\"\n", $Logger, $LoggerFlags); }
+            }
+        if ( $KeyWord eq "AUTHLOGGER")
+            {
+            ($ALogger, $ALoggerFlags) = $Variable =~ m/(\S+)\s* s*(.*)\s*/;
+            (@ALogFlags)=split(' ',$ALoggerFlags);
+            if ( $Verbose)
+                 { printf("debug: Corrected AUTHLOGGER value:\"%s\"\ndebug: Corrected AUTHLOGGER FLAGs:\"%s\"\n", $ALogger, $ALoggerFlags); }
+            }
+        if ( $KeyWord eq "FILETYPER") { $Filefunc = $Variable; }
+        if ( $KeyWord eq "DATABASE")  { $DBFile = $Variable; }
+        if ( $KeyWord eq "READDB")  { $ReadDB = $Variable; }
+        if ( $KeyWord eq "WRITEDB")  { $WriteDB = $Variable; }
+        if ( $KeyWord eq "HOSTNAME")  { $ThisHost = $Variable; }
+        if (($KeyWord eq "SYSTEM") && (&toupper($Variable) eq "DOS"))
+            { $ENV{'CMDLINE'}="null"; }
+        if (($KeyWord eq "SYSTEM") && (&toupper($Variable) eq "UNIX"))
+            {
+            $ENV{'CMDLINE'}="";
+            $ThisOS=`uname -s -r`;
+            chop($ThisOS);
+            $Uname=`uname -a`;
+            chop($Uname);
+            }
+        if ( $KeyWord eq "TIMEZONE")  { $ENV{'TZ'}=&toupper($Variable); }
+        if ( $KeyWord eq "SIGNATURE") { $HASHFunc = $Variable; }
+        # if ( $KeyWord eq "GNUMD5")    { $GnuHASHOut = &toupper($Variable); }
+        }
+    # if ($GnuHASHOut == "False") { undef($GnuHASHOut); }
+    }
+
+
+
+#############################################################################
+# &Configure;                                                               #
+# This routine reads in the configuration file, and initializes user        #
+# definable variables.                                                      #
+#############################################################################
+sub Configure
+    {
+    if ($Verbose) { printf("debug: Attempting to determine OS and hostname.\n"); }
+    # Try to determine the OS that we're running on based on environment
+    # variables that do not normally exist on Unix platforms but do in DOS.
+    # This can be set in the config file to by pass this routine.
+    #
+    if ($ENV{'COMSPEC'} && $ENV{'CMDLINE'})
+        {
+        # I think this system is DOS
+        ++$DOS;
+        # hostname not included with win3.x, win95/98, but is for NT, so...
+        $ThisHost = $ENV{'HOSTNAME'} unless $ThisHost;
+        }
+    else
+        {
+        # I think this system is Unix based
+        if(!$ThisHost)
+            {
+            $ThisHost = `uname -n`;
+            chop($ThisHost);
+            $ThisOS=`uname -s -r`;
+            chop($ThisOS);
+            $Uname=`uname -a`;
+            chop($Uname);
+            }
+        }
+    # If no hostname given, default to "localhost" as our name
+    $ThisHost = "localhost" unless $ThisHost;
+    if ($Verbose)              { printf("debug: Set hostname to: $ThisHost.\n"); }
+    if (($Verbose) && ($DOS))  { printf("debug: OS is DOS based.\n"); }
+    if (($Verbose) && (!$DOS)) { printf("debug: OS is Unix based.\n"); }
+    if ($Verbose) { printf("debug: (Configure) Reading configuration file.\n"); }
+    # Allow for a config definition involving the $HOSTNAME
+    if($UseHostName)
+        { $CFInput=sprintf("%s.%s", $config, $ThisHost); }
+    else
+        { $CFInput=$config; }
+    if($Verbose)
+        { printf("debug: (Configure) Configuration file set to: %s\n", $CFInput); }
+
+    $ConfigLevel = -1;
+    # Make an attempt to find the configuration file at least one deep
+    &DoConfig($CFInput,$rcfflag,$ConfigLevel);
+    if (!$ENV{'TZ'}) { printf("Error: Need TZ environment configured or environment set!\n\n"); &Help; }
+    }
+
+
+
+#############################################################################
+# &Exclude($filename);                                                      #
+#############################################################################
+sub Exclude
+    {
+    local($EFile)=@_;
+    if($Verbose) { printf("debug: (Exclude) checking on %s\n", $EFile); }
+    foreach $Line (@ExcludeMatrix)
+        {
+        if($DOS) { $EFile = &toupper($EFile); }
+        if($Verbose) { printf("debug: (Exclude) against %s\n", $Line); }
+            if ($Line =~ /\/$/)
+                { # Sub-directory matches
+                if ($EFile =~ /^$Line/) { if($Verbose) { printf("debug: (Exclude) directory match found, ignoring below here...\n"); } return(1); }
+                }
+            else
+                { # A file matches
+                if ($EFile eq $Line) { if($Verbose) { printf("debug: (Exclude) file match found, ignoring...\n"); } return(1); } }
+                }
+            return(0);
+        }
+
+
+
+#############################################################################
+# &BuildFileSeg();                                                          #
+#############################################################################
+sub BuildFileSeg
+    {
+    if ($Verbose) { printf("debug: (BuildFileSeg) building baseline %s\n", $DBfile); }
+    printf(DB "# - - - - -> BEGIN FILES <- - - - -\n");
+    foreach $Line (@LiveData) { printf(DB "%s\n", $Line); }
+    printf(DB "# - - - - -> END FILES <- - - - -\n");
+    return 0;
+    }
+
+
+
+#############################################################################
+# &BuildDirSeg($DirName,$recurse);                                          #
+#############################################################################
+sub BuildDirSeg
+    {
+    local($DirName,$recurse)=@_;
+    if ($Verbose) { printf("debug: (BuildDirSeg) building baseline %s\n", $DBfile); }
+    if ( $recurse == 1 )
+        { printf(DB "# - - - - -> BEGIN Directory Recursion  %s <- - - - -\n", $DirName); }
+    else
+        { printf(DB "# - - - - -> BEGIN Directory %s <- - - - -\n", $DirName); }
+    foreach $Line (@LiveData) { printf(DB "%s\n", $Line); }
+    return 0;
+    }
+
+
+
+#############################################################################
+# &GetFilesDB($dir);                                                        #
+# This routine builds the array @BaseLineData from the database segment     #
+#############################################################################
+sub GetFilesDB
+    {
+    local($index,$BI,$BP,$BL,$BU,$BG,$BS,$BT,$BN,$CRC,$pdir);
+    if($DOS) { $Dirname =~ s/:/.drive/; } # Handle drive delimiters, C:, D:, E:, etc.
+    %BaseLineData = ();
+    if (($FilesBegin != -1) && ($FilesEnd != -1) && ($FilesEnd <= $FilesEnd))
+        {
+        for ($index=$FilesBegin; $index<$FilesEnd + 1; $index++)
+            {
+            $_="$Database[$index]";
+            chop;
+            if($Verbose) { printf("debug: (GetFilesDB) reading [%s]\n", $_); }
+            # BI - Baseline Inode, BP - Baseline Permissions, BS - Size
+            # BT - Time, BN - Name (all generated by the "stat" call of perl
+            # B_CRC - the Checksum/Signature
+            # eXtended format has $BL - Link Count, $BU - Uid, $BG - Gid
+            if ($XTended)
+                { ($BI, $BP, $BL, $BU, $BG, $BS, $BT, $BN, $CRC) = split("!", $_); }
+            else
+                { ($BI, $BP, $BS, $BT, $BN, $CRC) = split("!", $_); }
+            if(((($BP & 0170000)>>12)==4) ) { next; }
+            $BaseLineData{$BN} = $_;
+            }
+        }
+    else
+        { if($Verbose) { printf("debug: (GetFilesDB) No files to retrieve from DB"); } }
+    return(@BaseLineData);
+    }
+
+
+
+#############################################################################
+# &GetLiveFiles();                                                          #
+# This routine builds the array @LiveData based on the live data.           #
+#############################################################################
+sub GetLiveFiles
+    {
+    local($filename);
+    if ($Verbose) { printf("debug: (GetLiveFiles) reading %s files\n",$#CheckFile ); }
+    if ( $#CheckFile != -1 )
+        {
+        for ($index=0; $index < $#CheckFile + 1; $index++)
+            {
+            if ($Verbose) { printf("debug: (GetLiveFiles) reading %s \n",$CheckFile[$index]); }
+            # Report configuration problems - non-existant files - when Baselining
+            if (!-e "$CheckFile[$index]" && $BaseLine)
+                {
+                if ($Logging)
+                    {
+                    if(!$DOS)
+                        {
+                        $cmd=sprintf("\"CONFIG: File %s on %s contains reference to non-existant file %s\"\n", $config,$ThisHost,$CheckFile[$index]);
+                        system($Logger, @LogFlags, $cmd);
+                        }
+                    }
+                if ((!$Logging) || (($Logging) && ($Reporting)))
+                    { printf("\nCONFIG: File %s on %s contains reference to non-existant file %s\n",$config,$ThisHost,$CheckFile[$index]); }
+                }
+            # Root generally can not read a file if it is a link and the link points to
+            # a non-existant file. Basically the stat will fail
+            next if (!-r "$CheckFile[$index]" );
+            if (-d "$CheckFile[$index]" )
+                {
+                push(@CheckDir, "$CheckFile[$index]" );
+                if ($Logging)
+                    {
+                    $cmd=sprintf("\"CONFIG: Configuration file on %s labels %s as a file when it is a directory\"\n",$ThisHost,$CheckFile[$index]);
+                    system($Logger, @LogFlags, $cmd);
+                    }
+                next;
+                }
+            elsif (-f "$CheckFile[$index]" )
+                { &GetFileInfo("$CheckFile[$index]"); }
+            elsif (!$DOS)
+                {
+                # give the Unix folks a bit more info
+                if (-p "$CheckFile[$index]" || -S "$CheckFile[$index]" || -b "$CheckFile[$index]" || -c "$CheckFile[$index]")
+                    { &GetFileInfo("$CheckFile[$index]"); }
+                }
+            else
+                {
+                if ($Logging)
+                    {
+                    $cmd=sprintf("\"CONFIG: Configuration file on %s labels %s as a file when it is not a file or a directory\"\n",$ThisHost,$CheckFile[$index]);
+                    system($Logger, @LogFlags, $cmd);
+                    }
+                next;
+                }
+            }
+        }
+    else
+        { if ($Verbose) { printf("debug: (GetLiveFiles) No individual files to read\n"); } }
+    }
+
+
+
+#############################################################################
+# &GetDirDB($dir);                                                          #
+# This routine builds the array @BaseLineData from the database segment     #
+#############################################################################
+sub GetDirDB
+    {
+    local($Dirname)=@_;
+    local($index,$BI,$BP,$BL,$BU,$BG,$BS,$BT,$BN,$CRC);
+    if($DOS) { $Dirname =~ s/:/.drive/; } # Handle drive delimiters, C:, D:, E:, etc.
+    $Dirname =~ s/\//_/g;
+    if ($Verbose) { printf("debug: (GetDirDB) reading \n", $Dirname); }
+    %BaseLineData = ();
+    if ((defined($begin{"$Dirname"})) && (defined($end{"$Dirname"})) && ($begin{"$Dirname"} <= $end{"$Dirname"}))
+        {
+        for ($index=$begin{"$Dirname"}; $index<$end{"$Dirname"} + 1; $index++)
+            {
+            $_="$Database[$index]";
+            chop;
+            if($Verbose) { printf("debug: (GetDirDB) reading [%s]\n", $_); }
+            # BI - Baseline Inode, BP - Baseline Permissions, BS - Size
+            # BT - Time, BN - Name (all generated by the "stat" call of perl
+            # B_CRC - the Checksum/Signature
+            if ($XTended)
+                { ($BI, $BP, $BL, $BU, $BG, $BS, $BT, $BN, $CRC) = split("!", $_); }
+            else
+                { ($BI, $BP, $BS, $BT, $BN, $CRC) = split("!", $_); }
+            if(!$DirCheck) { next if ( $BP =~ /^d/); }
+            if( (!$DirCheck) && (!$DOS) && ((($BP & 0170000)>>12)==4) ) { next; }
+            $BaseLineData{$BN} = $_;
+            }
+        }
+    else
+        {
+        if (($Logging) && ($BaseLine))
+            {
+            if(!$DOS)
+                {
+                $cmd=sprintf("\"CONFIG: %s database %s does NOT match config file %s on %s for %s\"\n", $Me,$DBFile,$config,$ThisHost,$Dirname);
+                system($Logger, @LogFlags, $cmd);
+                }
+            }
+        &Error("Error: Baseline does not match configuration file on $Dirname");
+        }
+    return(@BaseLineData);
+    }
+
+
+
+#############################################################################
+# &GetLiveDir($dir);                                                        #
+# This routine builds the array @LiveData based on the live data.           #
+#############################################################################
+sub GetLiveDir
+    {
+    local($Dir)=@_;
+    local($filename);
+    if ($Verbose) { printf("debug: (GetLiveDir) reading %s\n", $Dir); }
+    if (! -d $Dir )
+        {
+        if ($Logging)
+            {
+            if(!$DOS)
+                {
+                $cmd=sprintf("\"CONFIG: Configuration file %s on %s declares %s a Directory when it is not\"\n", $config,$ThisHost,$Dir);
+                system($Logger, @LogFlags, $cmd);
+                }
+            }
+        else
+            { printf("\nCONFIG: Configuration file %s on %s labels %s as a directory when it is NOT \n",$config,$ThisHost,$Dir); }
+        return;
+        }
+    else
+        {
+        # It's a directory
+        if ($Dir =~ /:\/$/) { &GetDir($Dir, 0); }
+        elsif (($Dir =~ /\/$/) && ($Dir ne "/")) { $Dir =~ s/\/$//; &GetDir($Dir, 1); }
+        else { &GetDir($Dir, 0); }
+        }
+    }
+
+
+
+###############################################################################
+# $x=&Scan_Build(type);                                                       #
+# This is the heart of the script. Scan_Build will either scan and/or build a #
+# grouping of files based on the files or directories given it in the config  #
+# file works on a directory by directory basis or a list of individual files  #
+###############################################################################
+sub Scan_Build
+    {
+    local($type)=@_;
+    local($Hacks);
+
+    # Check the type and log what we are doing verbose / debugging
+    if (("$type" eq "Files") && ($Verbose)) { printf("debug: (Scan_Build) reading Files \n"); }
+    elsif (("$type" eq "Directory") && ($Verbose))
+        { printf("debug: (Scan_Build) reading directory %s\n", $Dir); }
+    elsif (("$type" ne "Files") && ("$type" ne "Directory"))
+        { &Error("Error: Scan_Build received an invalid type $type -- Must be Files or Directory"); }
+
+    # Hacks is where plusses, minuses, and changes get incremented
+    $Hacks=0;
+
+    # If we are not building, then we are scanning
+    if (!$BaseLine)
+        {
+        if (("$type" eq "Files"))
+            {
+            # Scan the individual files
+            # Load the segment of an existing database into an associative array BaseLineData
+            &GetFilesDB();
+            # Build a similar array from the directory as it exists now
+            &GetLiveFiles();
+            }
+        else
+            {
+            # Scan directory
+            # Load the segment of an existing database into an associative array BaseLineData
+            &GetDirDB($Dir);
+            # Build a similar array from the directory as it exists now
+            &GetLiveDir($Dir);
+            }
+
+        # Loop over the live data to detect differences
+        for ($ldd=0; $ldd < $#LiveData + 1; $ldd++)
+            {
+            if ($XTended)
+                { ($L_Inode, $L_Perms, $L_Links, $L_Uid, $L_Gid, $L_Size, $L_Time, $L_Name, $L_CRC) = split("!", $LiveData[$ldd]); }
+            else
+                { ($L_Inode, $L_Perms, $L_Size, $L_Time, $L_Name, $L_CRC) = split("!", $LiveData[$ldd]); }
+            # Ignore any not in BaseLineData
+            next unless defined($BaseLineData{$L_Name});
+
+            if ($XTended)
+                { ($B_Inode, $B_Perms, $B_Links, $B_Uid, $B_Gid, $B_Size, $B_Time, $B_Name, $B_CRC) = split("!", $BaseLineData{$L_Name}); }
+            else
+                { ($B_Inode, $B_Perms, $B_Size, $B_Time, $B_Name, $B_CRC) = split("!", $BaseLineData{$L_Name}); }
+            # In the next version the checks, and the logging will be built through a mask
+            if ($CreateDate)
+                {
+                # Ignore creation dates
+                # Check to see if there is a mismatch in either the permissions or inode number
+                if ((!$Hash) && (($L_Perms ne $B_Perms) || ($L_Inode ne $B_Inode) || ($L_Size ne $B_Size)))
+                    {
+                    # Are we logging (Unix style logger command)
+                    if($Logging)
+                        {
+                        # Form the command in the $cmd variable
+                        $cmd = sprintf("\"WARNING: [%s] %s [%s]\"\n", $ThisHost, $L_Name,
+                            &FindDiff($B_Inode, &ShowPerms($B_Perms), $B_Size, &ctime($B_Time), "UID", "GID", "LINKS", "CRC",
+                            $B_Name, $L_Inode, &ShowPerms($L_Perms),$L_Size, &ctime($L_Time), "UID", "GID", "LINKS", "CRC"), $L_Name);
+                        system($Logger, @LogFlags, $cmd);
+                        }
+                    if ((!$Logging) || (($Logging) && ($Reporting)))
+                        {
+                        # Logger not available - print to screen
+                        printf("\n\tWARNING: [%s] %s\n\t[%s]\n", $ThisHost, $L_Name,
+                            &FindDiff($B_Inode, &ShowPerms($B_Perms), $B_Size, &ctime($B_Time), "UID", "GID", "LINKS", "CRC",
+                            $B_Name, $L_Inode, &ShowPerms($L_Perms),$L_Size, &ctime($L_Time), "UID", "GID", "LINKS", "CRC"), $L_Name);
+                        }
+                    # Increment the number of "Hacks" for mismatched permissions or inode numbers
+                    ++$Hacks;
+                    }
+
+                # Additionally check for Hash (e.g. MD5) mismatches
+                # Do we care
+                elsif ( ($Hash) && (($L_CRC ne $B_CRC) || ($L_Perms ne $B_Perms) || ($L_Inode ne $B_Inode) || ($L_Size ne $B_Size)))
+                    {
+                    if($Logging)
+                        {
+                        # Show the change to CRC/Signature
+                        $cmd = sprintf("\"WARNING: [%s] %s [%s]\"\n", $ThisHost, $L_Name,
+                            &FindDiff($B_Inode, &ShowPerms($B_Perms),$B_Size, &ctime($B_Time), "UID", "GID", "LINKS", $B_CRC,
+                            $B_Name, $L_Inode, &ShowPerms($L_Perms),$L_Size, &ctime($L_Time), "UID", "GID", "LINKS", $L_CRC), $L_Name);
+                        system($Logger, @LogFlags, $cmd);
+                        }
+                    if ((!$Logging) || (($Logging) && ($Reporting)))
+                        {
+                        printf("\n\tWARNING: [%s] %s\n\t[%s]\n", $ThisHost, $L_Name,
+                            &FindDiff($B_Inode, &ShowPerms($B_Perms),$B_Size, &ctime($B_Time), "UID", "GID", "LINKS", $B_CRC,
+                            $B_Name, $L_Inode, &ShowPerms($L_Perms),$L_Size, &ctime($L_Time), "UID", "GID", "LINKS", $L_CRC), $L_Name);
+                        }
+                    # Increment the number of "Hacks" for mismatched hashes
+                    ++$Hacks;
+                    }
+                elsif ($Reporting)
+                    {
+                    if ( ("$type" eq "Files") || (-d $L_Name))
+                        { printf("No changes on %s to: %s \n", $ThisHost, $L_Name); }
+                     }
+
+                 }
+             elsif ($XTended)
+                 {
+                 # Creation time mode - Check times & permissions & inodes
+                 if ((!$Hash) && (($L_Time ne $B_Time) || ($L_Size ne $B_Size) ||
+                    ($L_Perms ne $B_Perms) || ($L_Inode ne $B_Inode) ||
+                    ($L_Links ne $B_Links) || ($L_Uid ne $B_Uid) || ($L_Gid ne $B_Gid) ))
+                     {
+                     # Log differences
+                     if($Logging)
+                         {
+                         $cmd = sprintf("\"WARNING: [%s] %s [%s]\"\n", $ThisHost, $L_Name,
+                                &FindDiff($B_Inode, &ShowPerms($B_Perms),$B_Size, &ctime($B_Time), $B_Uid, $B_Gid, $B_Links, $B_CRC,
+                                $B_Name, $L_Inode, &ShowPerms($L_Perms),$L_Size, &ctime($L_Time), $L_Uid, $L_Gid, $L_Links, $L_CRC), $L_Name);
+                         system($Logger, @LogFlags, $cmd);
+                         }
+                     if ((!$Logging) || (($Logging) && ($Reporting)))
+                         {
+                         printf("\n\tWARNING: [%s] %s\n\t[%s]\n", $ThisHost, $L_Name,
+                                &FindDiff($B_Inode, &ShowPerms($B_Perms),$B_Size, &ctime($B_Time), $B_Uid, $B_Gid, $B_Links, $B_CRC,
+                                $B_Name, $L_Inode, &ShowPerms($L_Perms),$L_Size, &ctime($L_Time), $L_Uid, $L_Gid, $L_Links, $L_CRC), $L_Name);
+                         }
+                     # Increment # of changes
+                     ++$Hacks;
+                     }
+                 # Check hashes in addition to times & permissions & inodes
+                 elsif (($Hash) && (($L_Time ne $B_Time) || ($L_Size ne $B_Size) ||
+                       ($L_Perms ne $B_Perms) || ($L_Inode ne $B_Inode) ||
+                       ($L_Links ne $B_Links) || ($L_Uid ne $B_Uid) || ($L_Gid ne $B_Gid) ||
+                       ($L_CRC ne $B_CRC)))
+                     {
+                     if($Logging)
+                         {
+                         # Show the change to CRC/Signature
+                         $cmd = sprintf("\"WARNING: [%s] %s [%s]\"\n", $ThisHost, $L_Name,
+                                &FindDiff($B_Inode, &ShowPerms($B_Perms),$B_Size, &ctime($B_Time), $B_Uid, $B_Gid, "LINKS", $B_CRC,
+                                $B_Name, $L_Inode, &ShowPerms($L_Perms),$L_Size, &ctime($L_Time), $L_Uid, $L_Gid, "LINKS", $L_CRC), $L_Name);
+                         system($Logger, @LogFlags, $cmd);
+                         }
+                     if ((!$Logging) || (($Logging) && ($Reporting)))
+                         {
+                         printf("\n\tWARNING: [%s] %s\n\t[%s]\n", $ThisHost, $L_Name,
+                                &FindDiff($B_Inode, &ShowPerms($B_Perms),$B_Size, &ctime($B_Time), $B_Uid, $B_Gid, "LINKS", $B_CRC,
+                                $B_Name, $L_Inode, &ShowPerms($L_Perms),$L_Size, &ctime($L_Time), $L_Uid, $L_Gid, "LINKS", $L_CRC), $L_Name);
+                         }
+                     # End Logging
+                     # Increment # of changes
+                ++$Hacks;
+                }
+            # End Hash check
+            elsif ($Reporting)
+                {
+                if ( ("$type" eq "Files") || (-d $L_Name))
+                    { printf("No changes on %s to: %s \n", $ThisHost, $L_Name); }
+                }
+            }
+        else
+            {
+            # Creation time mode - Check times & permissions & inodes
+            if ((!$Hash) && (($L_Time ne $B_Time) || ($L_Size ne $B_Size) ||
+               ($L_Perms ne $B_Perms) || ($L_Inode ne $B_Inode) ))
+                {
+                # Log differences
+                if($Logging)
+                    {
+                    $cmd = sprintf("\"WARNING: [%s] %s [%s]\"\n", $ThisHost, $L_Name,
+                        &FindDiff($B_Inode, &ShowPerms($B_Perms),$B_Size, &ctime($B_Time), "UID", "GID", "LINKS", "CRC",
+                        $B_Name, $L_Inode, &ShowPerms($L_Perms),$L_Size, &ctime($L_Time), "UID", "GID", "LINKS", "CRC"), $L_Name);
+                    system($Logger, @LogFlags, $cmd);
+                    }
+                if ((!$Logging) || (($Logging) && ($Reporting)))
+                    {
+                    printf("\n\tWARNING: [%s] %s\n\t[%s]\n", $ThisHost, $L_Name,
+                        &FindDiff($B_Inode, &ShowPerms($B_Perms),$B_Size, &ctime($B_Time), "UID", "GID", "LINKS", "CRC",
+                        $B_Name, $L_Inode, &ShowPerms($L_Perms),$L_Size, &ctime($L_Time), "UID", "GID", "LINKS", "CRC"), $L_Name);
+                    }
+                # Increment # of changes
+                ++$Hacks;
+                }
+            # Check hashes in addition to times & permissions & inodes
+            elsif (($Hash) && (($L_Time ne $B_Time) || ($L_Size ne $B_Size) ||
+                  ($L_Perms ne $B_Perms) || ($L_Inode ne $B_Inode) || ($L_CRC ne $B_CRC)))
+                {
+                if($Logging)
+                    {
+                    # Change to CRC/Signature
+                    $cmd = sprintf("\"WARNING: [%s] %s [%s]\"\n", $ThisHost, $L_Name,
+                        &FindDiff($B_Inode, &ShowPerms($B_Perms),$B_Size, &ctime($B_Time), "UID", "GID", "LINKS", $B_CRC,
+                        $B_Name, $L_Inode, &ShowPerms($L_Perms),$L_Size, &ctime($L_Time), "UID", "GID", "LINKS", $L_CRC), $L_Name);
+                    system($Logger, @LogFlags, $cmd);
+                    }
+                if ((!$Logging) || (($Logging) && ($Reporting)))
+                    {
+                    printf("\n\tWARNING: [%s] %s\n\t[%s]\n", $ThisHost, $L_Name,
+                        &FindDiff($B_Inode, &ShowPerms($B_Perms),$B_Size, &ctime($B_Time), "UID", "GID", "LINKS", $B_CRC,
+                        $B_Name, $L_Inode, &ShowPerms($L_Perms),$L_Size, &ctime($L_Time), "UID", "GID", "LINKS", $L_CRC), $L_Name);
+                    }
+                # Increment # of changes
+                ++$Hacks;
+            }
+        elsif ($Reporting)
+            {
+            if (("$type" eq "Files") || (-d $L_Name))
+                { printf("No changes on %s to: %s \n", $ThisHost, $L_Name); }
+            }
+        }
+        # Delete matches in BaseLineData and LiveData so that the values
+        #  that remain are added or deleted files
+        $BaseLineData{$L_Name} = "";
+        $LiveData[$ldd] = "";
+    }
+
+    # loop over remaining LiveData elements (ones matching entries in
+    # BaseLineData set to empty string)
+
+    # Check for files that have been added
+    foreach $Live (@LiveData)
+        {
+        next if ($Live eq "");
+        if ($XTended)
+            { ($Inode, $Perms, $NLinks, $Uid, $Gid, $Size, $Time, $Name, $CRC) = split("!", $Live);}
+        else
+            { ($Inode, $Perms, $Size, $Time, $Name, $CRC) = split("!", $Live); }
+    if($Logging)
+        {
+        if ($XTended)
+            {
+            $cmd=sprintf("\"ADDITION: [%s] %s  [%s  %s  %s  %s  %s  %s %s  %s]\"\n",
+            $ThisHost, $Name, $Inode, &ShowPerms($Perms), $NLinks, $Uid, $Gid, $Size, &ctime($Time));
+            }
+        else
+            {
+            $cmd=sprintf("\"ADDITION: [%s] %s  [%s  %s  %s  %s]\"\n",
+            $ThisHost, $Name, $Inode, &ShowPerms($Perms), $Size, &ctime($Time));
+            }
+        system($Logger, @LogFlags, $cmd);
+        }
+      if ((!$Logging) || (($Logging) && ($Reporting)))
+          {
+          if ($XTended)
+              {
+              printf("\n\tADDITION: [%s] %s\n", $ThisHost, $Name);
+              printf("\tInode\tPermissons\tNLink\tUid\tGid\tSize\tCreated On\n");
+              printf("\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+              $Inode, &ShowPerms($Perms), $NLinks, $Uid, $Gid, $Size, &ctime($Time));
+              }
+          else
+              {
+              printf("\n\tADDITION: [%s] %s\n", $ThisHost, $Name);
+              printf("\tInode\tPermissons\tSize\tCreated On\n");
+              printf("\t%s\t%s\t%s\t%s\n",
+              $Inode, &ShowPerms($Perms), $Size, &ctime($Time));
+              }
+          }
+      ++$Hacks;
+      }
+
+      # Check for files that have been deleted
+      foreach $Base (sort values %BaseLineData)
+          {
+          next if ($Base eq "");
+          if ($XTended)
+              { ($Inode, $Perms, $NLinks, $Uid, $Gid, $Size, $Time, $Name, $CRC) = split("!", $Base); }
+          else
+              { ($Inode, $Perms, $Size, $Time, $Name, $CRC) = split("!", $Base); }
+          if($Logging)
+              {
+              if ($XTended)
+                  {
+                  $cmd=sprintf("\"DELETION: [%s] %s  [%s  %s  %s  %s  %s  %s %s]\"\n",
+                  $ThisHost, $Name, $Inode, &ShowPerms($Perms), $NLinks, $Uid, $Gid, $Size, &ctime($Time));
+                  }
+              else
+                  {
+                  $cmd=sprintf("\"DELETION: [%s] %s  [%s  %s  %s  %s]\"\n",
+                  $ThisHost, $Name, $Inode, &ShowPerms($Perms), $Size, &ctime($Time));
+                  }
+              system($Logger, @LogFlags, $cmd);
+              }
+          if ((!$Logging) || (($Logging) && ($Reporting)))
+              {
+              if ($XTended)
+                  {
+                  printf("\n\tDELETION: [%s] %s\n", $ThisHost, $Name);
+                  printf("\tInode\tPermissons\tNLink\tUid\tGid\tSize\tCreated On\n");
+                  printf("\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", $Inode, &ShowPerms($Perms), $NLinks, $Uid, $Gid, $Size, &ctime($Time));
+                  }
+              else
+                  {
+                  printf("\n\tDELETION: [%s] %s\n", $ThisHost, $Name);
+                  printf("\tInode\tPermissons\tSize\tCreated On\n");
+                  printf("\t%s\t%s\t%s\t%s\n", $Inode, &ShowPerms($Perms), $Size, &ctime($Time));
+                  }
+              }
+            ++$Hacks;
+            }
+        # Tally failures, compare against 0 to set the return
+        $ReportFail += $Hacks;
+        }
+    else #Build baseline database
+        {
+        if (("$type" eq "Files"))
+            {
+            # Build a similar array from the directory as it exists now
+            &GetLiveFiles();
+            &BuildFileSeg();
+            }
+        else
+            {
+            # Build a similar array from the directory as it exists now
+            &GetLiveDir($Dir);
+            &BuildDirSeg($Dir);
+            }
+        undef(@BaseLineData);
+        undef(@LiveData);
+        return(1);
+        }
+    return($Hacks);
+    }
+
+
+
+###############################################################################
+# &SpecialFileProps($FileName);                                               #
+# This routine will get the properties of *nix special files, beginning with  #
+# block and character special files                                           #
+###############################################################################
+sub SpecialFileProps
+    {
+    local ($filename,$Rdev)=@_;
+    local ($properties,$sfptmp,$majmin,$ai,@scratchpad);
+    if ((-b "$filename" ) || (-c "$filename" ))
+        {
+        $majmin=$Rdev;
+        if (defined($Filefunc))
+            {
+            $sfptmp = &ExecHash($Filefunc, $filename);
+            (@scratchpad) = split(' ',$sfptmp);
+            # it is the one after special, sans the parens
+            SCRATCH: for ($ai=0; $ai < $#scratchpad + 1; $ai++)
+                {
+                if ( $scratchpad[$ai] =~ m/special/i )
+                    {
+                    $majmin = $scratchpad[$ai + 1];
+                    $majmin = substr($majmin,1,length($majmin) -2);
+                    last SCRATCH;
+                    }
+                }
+            }
+
+        # If Filefunc not defined, just return rdev
+        $properties = $majmin;
+        }
+
+    # Return properties
+    $properties;
+    }
+
+
+
+###############################################################################
+# &GetFileInfo($FileName);                                                    #
+# This routine will build the @LiveData array from the information            #
+# it is the guts of the old GetDir, so that individual files can be checked   #
+###############################################################################
+sub GetFileInfo
+    {
+    local($filename,@junk)=@_;
+
+    local($Dev,$Inode,$Perms,$NLink,$Uid,$Gid,$Rdev,$Size,$ATime,$MTime,$CTime,$BlkSize,$Blocks);
+    local($majmin);
+    if ($Verbose)
+        { printf("debug: (GetFileInfo) processing %s \n",$filename); }
+    # DOS chokes when the root directory gets a double slash prepended
+    $filename =~ s/\/\//\//;
+    #       0  dev      device number of filesystem
+    #       1  ino      inode number
+    #       2  mode     file mode  (type and permissions)
+    #       3  nlink    number of (hard) links to the file
+    #       4  uid      numeric user ID of file's owner
+    #       5  gid      numeric group ID of file's owner
+    #       6  rdev     the device identifier (special files only)
+    #       7  size     total size of file, in bytes
+    #       8  atime    last access time since the epoch
+    #       9  mtime    last modify time since the epoch
+    #      10 ctime    inode change time (NOT creation time!) since the epoch
+    #      11 blksize  preferred block size for file system I/O
+    #      12 blocks   actual number of blocks allocated
+    #      (The epoch was at 00:00 January 1, 1970 GMT.)  Fixed Y2K glitch under DOS
+    next if (&Exclude($filename));
+
+    ($Dev,$Inode,$Perms,$NLink,$Uid,$Gid,$Rdev,$Size,$ATime,$MTime,$CTime,$BlkSize,$Blocks) = stat("$filename");
+
+    # Handle links and special files a little bit differently
+    if($DOS)
+        {
+        if($Hash && !-d "$filename" && !-l "$filename")
+            {
+            $filesig = &ExecHash($HASHFunc, $filename);
+            if ($HASHFunc =~ m/md5sum/)
+                # Format of md5sum is
+                # filesig filename
+                { ($filesig) = split(" ", $filesig); }
+            elsif ($HASHFunc =~ m/md5/)
+                # Format of MD5 is
+                # MD5 (filename) = filesig
+                { ($md5label,$md5filename,$md5equals,$filesig) = split(" ", $filesig); }
+            else
+                # Format of most others is
+                # filesig filename
+                { ($filesig) = split(" ", $filesig); }
+#            close(IN);
+            }
+        else
+            { $filesig = "NOCRC"; }
+        # Do not check Directories unless "-d" was specified
+        #
+        if (((($Perms & 0170000) >> 12) != 4) || $DirCheck)
+            {
+            # DOS names are really all uppercase, so...
+            if($DOS)
+                { push(@LiveData, join("!", " ", "          ", $Size, $CTime, &toupper($filename), $filesig )); }
+            else
+                 { push(@LiveData, join("!", $Inode, $Perms, $Size, $CTime, $filename, $filesig)); }
+
+            if (($Verbose) && (!$DOS))
+                {
+                printf("debug: (GetFileInfo) %s %s %s %s %s %s %s\n",
+                $Inode, $Perms, $Month, $Day, $Time, $filename, $filesig);
+                }
+            if (($Verbose) && ($DOS))
+                {
+                printf("debug: (GetFileInfo) %s %s %s %s\n",
+                $Size, $Time, $filename, $filesig);
+                }
+            }
+        }
+    else
+        {
+        if($Hash)
+            {
+            # Eliminate things that we don't want to "open" for reading
+            if (-p "$filename" ) { $filesig = "FIFO"; }
+            elsif (-S "$filename" ) { $filesig = "SOCKET"; }
+            elsif (-b "$filename" )
+                {
+                $majmin = &SpecialFileProps($filename,$Rdev);
+                $filesig = "BlockSpecial".':'.$majmin ;
+                }
+            elsif (-c "$filename" )
+                {
+                $majmin = &SpecialFileProps($filename,$Rdev);
+                $filesig = "CharSpecial".':'.$majmin;
+                }
+            elsif (-d "$filename" ) { $filesig = "Dir"; }
+            elsif (-f "$filename" && !-s "$filename" ) { $filesig = "ZeroLength"; }
+            elsif (!-e "$filename" ) { $filesig = "NoSuchFile"; }
+
+            # OK now start looking at signatures
+            elsif (-l "$filename" && -s "$filename")
+                {
+                $filesig = &ExecHash($HASHFunc, $filename);
+                $fullsigmsg="$filesig";
+                # Check for can't be opened message
+                if ( $fullsigmsg !~ m/can.t be opened/)
+                    {
+                    if ($HASHFunc =~ m/md5sum/)
+                        # Format of md5sum is
+                        # filesig filename
+                        { ($filesig) = split(" ", $filesig); }
+                    elsif ($HASHFunc =~ m/md5/)
+                        # Format of MD5 is
+                        # MD5 (filename) = filesig
+                        { ($md5label,$md5filename,$md5equals,$filesig) = split(" ", $filesig); }
+                    else
+                        # Format of most others is
+                        # filesig filename
+                        { ($filesig) = split(" ", $filesig); }
+                    }
+                else
+                    { $filesig="CanNotOpen"; }
+                $filesig="SYMLINK:"."$filesig";
+            }
+            elsif (-f "$filename" && -s "$filename")
+                {
+                $filesig = &ExecHash($HASHFunc, $filename);
+                $fullsigmsg="$filesig";
+                # Check for can't be opened message
+                if ( $fullsigmsg !~ m/can.t be opened/)
+                    {
+                    if ($HASHFunc =~ m/md5sum/)
+                        # Format of md5sum is
+                        # filesig filename
+                        { ($filesig) = split(" ", $filesig); }
+                    elsif ($HASHFunc =~ m/md5/)
+                        # Format of MD5 is
+                        # MD5 (filename) = filesig
+                        { ($md5label,$md5filename,$md5equals,$filesig) = split(" ", $filesig); }
+                    else
+                        # Format of most others is
+                        # filesig filename
+                        { ($filesig) = split(" ", $filesig); }
+                    }
+                else
+                    { $filesig="CanNotOpen"; }
+                }
+            else
+                { $filesig = "NOCRC"; }
+            }
+        else
+            { $filesig = "NOCRC"; }
+        # DOS names are really all uppercase, so...
+        if($DOS)
+            { push(@LiveData, join("!", " ", "          ", $Size, $CTime, &toupper($filename), $filesig )); }
+        else
+            {
+            # Match ls -li format
+            if($XTended)
+                { push(@LiveData, join("!", $Inode, $Perms, $NLink, $Uid, $Gid, $Size, $CTime, $filename, $filesig)); }
+            else
+                { push(@LiveData, join("!", $Inode, $Perms, $Size, $CTime, $filename, $filesig)); }
+            }
+
+        if (($Verbose) && (!$DOS))
+            {
+            if($XTended)
+                {
+                printf("debug: (GetFileInfo) %s %s %s %s %s %s %s %s\n",
+                $Inode, $Perms, $NLink, $Uid, $Gid, $CTime, $filename, $filesig);
+                }
+            else
+                {
+                printf("debug: (GetFileInfo) %s %s %s %s %s\n",
+                $Inode, $Perms, $CTime, $filename, $filesig);
+                }
+            }
+            if (($Verbose) && ($DOS))
+                {
+                printf("debug: (GetFileInfo) %s %s %s %s\n",
+                $Size, $CTime, $filename, $filesig);
+                }
+            }
+
+        }
+
+
+
+###############################################################################
+# &GetDir($dir, $recurse);                                                    #
+# This routine will build the @LiveData array from the information in $dir,   #
+# optionally this routine will recurse down that directory tree.              #
+###############################################################################
+sub GetDir
+    {
+    local($rootdir, $r)=@_;
+    local($filename);
+    # Is it a directory?
+    if (-d "$rootdir")
+        {
+        opendir(DIR, $rootdir) || die "debug: (GetDir) No can do ($rootdir)...\n";
+            foreach (sort readdir(DIR))
+                {
+                next if (/^\.\.?$/);
+                $filename = $_;
+                $filename = "$rootdir/$filename";
+                # Root generally can not read a file if it is a link and the link points to
+                # a non-existant file. Basically the stat will fail
+                next if (!-r "$filename" );
+
+                # DOS chokes when the root directory gets a double slash prepended
+                if (!-d "$filename" || (-d "$filename" && $DirCheck )) {&GetFileInfo("$filename");}
+                if ((-d "$filename" && !-l "$filename") && ($r)) { &GetDir("$filename", 1); }
+                }
+            close(DIR);
+            }
+        else
+            { &GetFileInfo("$rootdir"); }
+    }
+
+
+
+###############################################################################
+# $success=&BuildDBIndex();                                                   #
+# This small support routine will return the $string in uppercase format.     #
+###############################################################################
+sub BuildDBIndex
+{
+    # Data format so that it is both human readible and is all in one file
+    # and accomodates individual file
+    #  Format
+    #  First Line: # - Host *hostname*
+    #  Second Line:  # - OS *OS*
+    #  Third Line:  # - Database Creation  *date*
+    #  Fourth Line is for *IX and is the results of "uname -a"
+    #  Fourth Line:  # - Uname *uname*
+    #  Fifth Line: # - FCheck vx.x.x by Michael A. Gumienny
+    #
+    #  Individual files are at the Beginning with the following delimiters
+    #  - - - - -> BEGIN FILES < - - - - -
+    #  - - - - -> END FILES < - - - - -
+    #
+    #  Directories boundaries are delimited by
+    #  - - - - -> BEGIN Directory *directory_name* < - - - - -
+    #                     or
+    #  - - - - -> BEGIN Directory Recursion *directory_name* < - - - - -
+    #
+    # Recursion is only documented, so that the if the config file changes
+    #
+    # The last line in the file should be
+    # - - - - -> END Directories < - - - - -
+    #
+    local($index);
+    if ($Verbose) { printf("debug: (BuildDBIndex) processing %s \n",$filename); }
+    $DirFromDB = "initial";
+    $FoundEndDir = 2 ;
+    $FoundEndFile = 2 ;
+    $FilesBegin = -1;
+    $FilesEnd = -1;
+    for ($index=0; ($Done == 0) && ($index<$#Database + 1); $index++)
+        {
+        # Skip header info
+        next if ($Database[$index] =~ m/^#(-|\s|>)*Database\s*Creation\s*/) ;
+        next if ($Database[$index] =~ m/^#(-|\s|>)*Host\s*/) ;
+        next if ($Database[$index] =~ m/^#(-|\s|>)*OS\s*/) ;
+        next if ($Database[$index] =~ m/^#(-|\s|>)*Uname\s*/) ;
+        next if ($Database[$index] =~ m/^#(-|\s|>)*FCheck\s*/) ;
+        if ($Database[$index] =~ m/^#(-|\s|>)*BEGIN\s*FILES\s*/)
+            {
+            $FoundEndFile = 0 ;
+            if ($Verbose) { printf("debug: (BuildDBIndex) Individual Files declaration at line %s\n",$index); }
+            # Define the elements into the "files" array
+            $FilesBegin = $index + 1;
+            }
+        elsif ($Database[$index] =~ m/^#(-|\s|>)*END\s*FILES\s*/)
+            {
+            $FilesEnd = $index - 1 ;
+            $FoundEndFile = 1 ;
+            # Begin processing directories or files
+            }
+        elsif ($Database[$index] =~ m/^#(-|\s|>)*BEGIN\s*Directory\s*/)
+            {
+            # Detect delimiter problems
+            if ($FoundEndFile == 0) { &Error("Malformed database no ending delimiter line for FILES" ); }
+            # Store last line of previous directory
+            if ($DirFromDB ne "initial") { $end{"$DirFromDB"} = $index - 1 };
+            $FoundEndDir = 0 ;
+            $tmp = "$Database[$index]";
+            chop($tmp);
+            # Chop up the line
+            $tmp =~ s/^#(-|\s|>)*BEGIN\s*Directory\s*// ;
+            if ($tmp =~ m/^\s*Recursion\s*/)
+                {
+                $tmp2 = "$tmp";
+                $tmp2 =~ s/^\s*Recursion\s*//;
+                $tmp2 =~ s/(-|\s|>|<)*$//;
+                # From original fcheck - DOS may have heartburn
+                $tmp2 =~ s/\//_/g;
+                $DirFromDB = "$tmp2";
+                $recurse["$DirFromDB"] = 1;
+                if ($Verbose) { printf("debug: (BuildDBIndex) Recursive Directory declaration for %s at line %s \n",$DirFromDB,$index); }
+                }
+            else
+                {
+                $tmp =~ s/(-|\s|>|<)*$//;
+                # From original fcheck - DOS may have heartburn
+                $tmp =~ s/\//_/g;
+                $DirFromDB = "$tmp";
+                if ($Verbose) { printf("debug: (BuildDBIndex) Directory declaration for  %s at line %s \n",$DirFromDB,$index); }
+                }
+            $begin{"$DirFromDB"} = $index + 1;
+            }
+        elsif ($Database[$index] =~ m/^#(-|\s|>)*END\s*Directories\s*/)
+            {
+            if ($DirFromDB ne "initial") { $end{"$DirFromDB"} = $index - 1 };
+            $FoundEndDir = 1 ;
+            }
+        }
+    # Detect delimiter problems
+    if ($FoundEndDir == 0)
+        { &Error("Malformed database no ending delimiter line for Directories" ); }
+    }
+
+
+
+###############################################################################
+# $x=&toupper($string);                                                       #
+# This small support routine will return the $string in uppercase format.     #
+###############################################################################
+sub toupper
+    {
+    local($x) = @_;
+    $x =~ tr/a-z/A-Z/;
+    return $x;
+    }
+
+
+
+###############################################################################
+# $x=&ctime($y);                                                              #
+# This support routine will return the converted time to human readable format#
+# Basically, I'm trying to get away from any functions that may not be in any #
+# very minimal PERL distribution.                                             #
+###############################################################################
+sub ctime
+    {
+    local($time) = @_;
+    local($[) = 0;
+    local($sec, $min, $hour, $mday, $mon, $year, $wday);
+
+    @WeekDay = ('Sun','Mon','Tue','Wed','Thu','Fri','Sat');
+    @Month   = ('Jan','Feb','Mar','Apr','May','Jun',
+                'Jul','Aug','Sep','Oct','Nov','Dec');
+
+    ($sec, $min, $hour, $mday, $mon, $year, $wday) = ($TZ) ? gmtime($time) : localtime($time);
+    if ($DOS)
+        {
+        # Present the times in the traditional DOS way...
+        sprintf("%02d-%02d-%02d %02d:%02d%s", $mon, $mday, $year, $hour, $min, ($hour >=12) ? "p" : "a");
+        }
+    else
+        {
+        # Present the times in the traditional Unix way...
+        # Will anybody still be using this after 2036?
+        #$year += ($year < 70) ? 2000 : 1900;
+        $year += 1900;
+        sprintf("%s %02d %02d:%02d %4d", $Month[$mon], $mday, $hour, $min, $year);
+        }
+    }
+
+
+
+###############################################################################
+# $x=&ShowPerms($y);                                                          #
+# This routine is a fairly simplistic approach (Hey, it works!) to converting #
+# the returned "stat" call values to the more readable "rwx" format of Unix.  #
+###############################################################################
+sub ShowPerms
+    {
+    local($mode) = @_;
+    if($DOS) { return("\t"); }
+    local(@perms) = ("---", "--x",  "-w-",  "-wx",  "r--",  "r-x",  "rw-",  "rwx");
+    local(@ftype) = ("?", "p", "c", "?", "d", "?", "b", "?", "-", "?", "l", "?", "s", "?", "?", "?");
+    local ($setids) = ($mode & 07000)>>9;
+    local (@permstrs) = @perms[($mode & 0700) >> 6, ($mode & 0070) >> 3, ($mode & 0007) >> 0];
+    local ($ftype) = $ftype[($mode & 0170000)>>12];
+    if ($setids)
+        {
+        # Sticky Bit?
+        if ($setids & 01) { $permstrs[2] =~ s/([-x])$/$1 eq 'x' ? 't' : 'T'/e; }
+        # Setuid Bit?
+        if ($setids & 04) { $permstrs[0] =~ s/([-x])$/$1 eq 'x' ? 's' : 'S'/e; }
+        # Setgid Bit?
+        if ($setids & 02) { $permstrs[1] =~ s/([-x])$/$1 eq 'x' ? 's' : 'S'/e; }
+        }
+    return (join('', $ftype, @permstrs));
+    }
+
+
+
+###############################################################################
+# &Error("string");                                                           #
+# This routine prints out critical errors and terminates execution.           #
+###############################################################################
+sub Error
+    {
+    printf("%s: %s\nterminating...\n\n", $Me, @_);
+    exit(2);
+    }
+
+
+
+###############################################################################
+# $x=&FindDiff($LInode, $LPerms, $LSize, $LTime, $Luid, $Lgid, $LLinks, $LCRC,#
+#           $CInode, $CPerms, $CSize, $CTime, $Cuid, $Cgid], $CLinks, $CCRC); #
+# This routine will determine the differences between the baseline database   #
+# and the current run, and return only thoses differences.                    #
+###############################################################################
+sub FindDiff
+    {
+    local($C);
+    local($LI, $LP, $LS, $LT, $LU, $LG, $LL, $LC, $CN, $CI, $CP, $CS, $CT, $CU, $CG, $CL, $CC)=@_;
+
+    if ($LI ne $CI) { $C = sprintf("Inodes: %s - %s, ", $LI, $CI); }
+    if ($LP ne $CP) { $C = sprintf("%sPermissions: %s - %s, ", $C, $LP, $CP); }
+    if ($LS ne $CS) { $C = sprintf("%sSizes: %s - %s, ", $C, $LS, $CS); }
+    if ($LT ne $CT) { $C = sprintf("%sTimes: %s - %s, ", $C, $LT, $CT); }
+    if ($LU ne $CU) { $C = sprintf("%sUIDs: %s - %s, ", $C, $LU, $CU); }
+    if ($LG ne $CG) { $C = sprintf("%sGIDs: %s - %s, ", $C, $LG, $CG); }
+    if ($LL ne $CL) { $C = sprintf("%sLinks: %s - %s, ", $C, $LL, $CL); }
+    if ($LC ne $CC) { $C = sprintf("%sCRCs: %s - %s, ", $C, $LC, $CC); }
+
+    #printf("WARNING: %s\n", $C);
+    # $cmd = sprintf("\"WARNING: [%s] %s [%s]\"\n", $ThisHost, $L_Name,
+    #        &FindDiff($B_Inode, &ShowPerms($B_Perms),$B_Size, &ctime($B_Time),
+    #        $B_Name, $L_Inode, &ShowPerms($L_Perms),$L_Size, &ctime($L_Time), $L_Name));
+    # system($Logger, @LogFlags, $cmd);
+    # Quick hack to get this released on time.
+    chop($C); chop($C);
+    return($C);
+    }
+
+
+
+###############################################################################
+# $Hash=&ExecHash($HASHFunc, $filename);                                      #
+# This routine allows us to do a safer hash spawn without generating a shell. #
+# This routine is also used by the special properties routine for major/minor #
+# number determinations.                                                      #
+#                                                                             #
+# This also provides a springboard for future expansion of a possible internal#
+# MD5 routine, etc...                                                         #
+###############################################################################
+sub ExecHash
+    {
+    local($HASHFunc, $filename) = @_;
+    local $filesig;
+
+    unless ( defined $HASHFunc )
+        { &Error("invalid command $HASHFunc given"); }
+    if (open (HASHIN, "-|") )
+        {
+        $filesig = <HASHIN>;
+        close HASHIN;
+        }
+    else
+        { exec ($HASHFunc, $filename); }
+
+    unless ( $filesig )
+        { &Error("$HASHFunc was unable to read $filename, or was unable to execute\n"); }
+    # Chop the <CR> off the end, do I trust the chpo function?
+    # depends on the OS...
+    $filesig =~ s/\n$//;
+    return $filesig;
+    }
+
+
+
+###############################################################################
+# Main routine starts here.                                                   #
+###############################################################################
+# Parse the command line for arguments and flags
+if($#ARGV==-1){&Help;} # help the user, they forgot the syntax, otherwise...
+
+if(($#ARGV==0) && (@ARGV[0] !~ /^-/))
+    { $Dir  = shift(@ARGV); }
+else
+    {
+    foreach $arg (@ARGV)
+        {
+        if ($Verbose)
+            { printf("debug: processing command line - arg %s \t ARGV[0] %s\n",$arg,$ARGV[0]); }
+        if ($arg =~ /^-/)
+            {
+            if ($arg =~ /a/)  { $Auto=1; }
+            if ($arg =~ /c/)  { $BaseLine=1; }
+            if ($arg =~ /d/)  { $DirCheck=1; }
+            if ($arg =~ /f/)  { $Config=1; }
+            if ($arg =~ /g/)  { $GnuHASHOut=1; }
+            if ($arg =~ /i/)  { $CreateDate=1; }
+            if ($arg =~ /h/)  { $UseHostName=1; }
+            if ($arg =~ /l/)  { $Logging=1; }
+            if ($arg =~ /r/)  { $Reporting=1; }
+            if ($arg =~ /s/)  { $Hash=1; }
+            if ($arg =~ /v/)  { $Verbose=1; }
+            if ($arg =~ /x/)  { $XTended=1; }
+            }
+        }
+    shift(@ARGV);
+    if ($Config) { $config = shift(@ARGV); }
+    $Dir  = shift(@ARGV);
+    }
+
+# Give user syntax help
+if (($Dir eq "") && (!$Auto)) { &Help; }
+
+$Dir =~ s/\\/\//g;
+
+if ($BaseLine) { $DirCheck=1; } &Configure;
+
+# Make sure that you have a HASHFunc if you request the hash, otherwise the
+# open will try to execute the filename
+if($Hash)
+{
+    if (!(-s  $HASHFunc && -x $HASHFunc))
+        { &Error("Signaturing requested with -s switch, but no SIGNATURE program specified in config file"); }
+}
+
+# Allow for a higher security mode, where databases are written to one place
+# and read from another, with the same config file
+# Sanity check is if both are defined
+if (defined($ReadDB) && defined($WriteDB)){
+        #Only work with the automatic modes
+        if (($BaseLine) && ($Auto)) { $DBFile = "$WriteDB"; }
+        elsif ((!$BaseLine) && ($Auto)) { $DBFile = "$ReadDB"; }
+}
+
+#If a separate Authorization logger is not defined, try to approximate one
+if (($Logging) && (!$DOS) && (!defined($ALogger)))
+        {
+        #Push towards the auth log if this hasn't been defined
+        #If you don't like it use the keyword and define it yourself
+        $ALogger="${Logger}";
+        $ALoggerFlags="${LoggerFlags}";
+        foreach $atom (@LogFlags)
+            {
+            if ($atom =~ m/-p auth/) { $atom =~ s/[a-z0-7]*/auth/; }
+            push(@ALogFlags,$atom);
+            }
+        }
+ elsif (($Logging) && (!defined($ALogger)))
+        {
+        #Mimic normal logger
+        $ALogger="${Logger}";
+        $ALoggerFlags="${LoggerFlags}";
+        (@ALogFlags)=split(' ',$ALoggerFlags);
+        }
+if ($Verbose) { printf("debug: Processing host [%s]\n", $ThisHost); }
+
+# Handling only one database file now
+if ($BaseLine)
+  {
+     # Open for write
+     open (DB, ">$DBFile") || &Error("no fcheck database exists! [$DBFile]");
+     printf(DB "# - Host  %s\n",$ThisHost);
+     printf(DB "# - OS  %s\n",$ThisOS);
+     $#junk = -1;
+     (@junk) = stat("$DBFile");
+     $DBCTime = $junk[10];
+     $#junk = -1;
+     printf(DB "# - Database Creation  %s\n",&ctime($DBCTime));
+     if (!$DOS) { printf(DB "# - Uname  %s\n",$Uname); }
+     printf(DB "# - FCheck by Michael A. Gumienny\n");
+  }
+else
+  {
+    #Open for read
+    open (DB, "<$DBFile") || &Error("no fcheck database exists! [$DBFile]");
+    #Suck the database into an array
+    @Database=<DB>;
+    close(DB);
+    &BuildDBIndex
+  }
+
+
+# Building a baseline is a significant event - syslog it if you can
+if (($Logging) && ($BaseLine))
+{
+  if(!$DOS)
+  {
+      # All rebuilds are significant
+      $cmd=sprintf("\"INFO: Rebuild of the %s database %s begun for %s using config file %s\"\n",$Me,$DBFile,$ThisHost,$config);
+      system($ALogger, @ALogFlags, $cmd);
+  }
+}
+$Processing="";
+if ($Auto)
+  {
+  if ($Reporting)
+    {
+      printf("Configuration: Configuration on %s begins with %s \n", $ThisHost,$config);
+      for ($cti=0; $cti < $#ConfigTree + 1; $cti++)
+        {
+          printf("%s\n", $ConfigTree[$cti]);
+        }
+        printf("- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -\n");
+    }
+  # Processing files and Directories except files are treated like one directory
+  # Make sure we have files to process
+  if ($#CheckFile != -1 )
+    {
+    $Processing="Files";
+    if (!$BaseLine)
+      {
+        if (!$Logging) { printf("\nPROGRESS: validating integrity of Files\nSTATUS: "); }
+      }
+    if($Verbose) { printf("\nbuilding baseline for Files\n"); }
+    if ((!&Scan_Build($Processing)) && (!$Logging)) { printf("passed...\n\n"); }
+    undef(@BaseLineData);
+    undef(@LiveData);
+    }
+  else #No FILE directives in config file
+    {
+    if ((!$BaseLine) && (!$Logging)) { printf("\nPROGRESS: No individual files to validating \n"); }
+    if($Verbose) { printf("\nNo Files specified for baseline, check for directories\n"); }
+    }
+  # Make sure we have directories to process
+  if ($#CheckDir != -1 )
+    {
+    $Processing="Directory";
+    foreach $Dir (@CheckDir)
+      {
+      if (!$BaseLine)
+        { if (!$Logging) { printf("\nPROGRESS: validating integrity of %s\nSTATUS:", $Dir); } }
+      if($Verbose) { printf("\nbuilding baseline for %s\n", $Dir); }
+      if ((!&Scan_Build($Processing)) && (!$Logging)) { printf("passed...\n\n"); }
+      undef(@BaseLineData);
+      undef(@LiveData);
+      }
+      printf(DB "# - - - - -> END Directories <- - - - -\n");
+     }
+   else
+     {
+     # No DIRECTORY directives in config file
+       if ((!$BaseLine) && (!$Logging)) { printf("\nPROGRESS: No directories specified in config file validation \n"); }
+
+        if($Verbose) { printf("\nNo Directories specified for baseline\n"); }
+      }
+  if ($ReportFail != 0 )
+    {
+        #Return 1 for not all passes
+        exit(1);
+    }
+  }
+else   #Not automatic mode
+  {
+     if (!$BaseLine)
+       {
+         if (!$Logging) { printf("\nPROGRESS: validating integrity of %s\nSTATUS: ", $Dir); }
+        }
+     else #Not automatic, but baselining (included from original fcheck)
+       {
+         if($Verbose) { printf("\nbuilding baseline for %s\n", $Dir); }
+         if (-d $Dir )
+           {
+             $Processing="Directory";
+             &Scan_Build($Processing);
+           }
+         elsif (-f $Dir )
+           {
+             $Processing="Files";
+             &Scan_Build($Processing);
+           }
+         else
+           {
+             if (!$Logging) { printf("\nError: Command line argument: $Dir not a file or directory \n"); }
+             &Help;
+           }
+         }
+  }
+close(DB);
+if (!$DOS) { chmod 0600,$DBFile ; }
+
