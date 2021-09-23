@@ -16,24 +16,21 @@ public class FcheckCommand {
         }
     }
     public String[] getFcheckUpdateCommand(){
-        String[] cmd = {integrityProperties.getProperty("shell"),
+        return new String[]{integrityProperties.getProperty("shell"),
         integrityProperties.getProperty("shell.option"),
         integrityProperties.getProperty("fcheck.path")+integrityProperties.getProperty("fcheck.update")
         };
-        return cmd;
     }
     public String[] getFcheckRunCommand(){
-        String[] cmd = {integrityProperties.getProperty("shell"),
+        return new String[]{integrityProperties.getProperty("shell"),
         integrityProperties.getProperty("shell.option"),
         integrityProperties.getProperty("fcheck.path")+integrityProperties.getProperty("fcheck.run")+
         integrityProperties.getProperty("grep")+integrityProperties.getProperty("grep.total")};
-        return cmd;
     }
 
     public String[] getFcheckRunCommandWithoutGrep(){
-        String[] cmd = {integrityProperties.getProperty("shell"),
+        return new String[]{integrityProperties.getProperty("shell"),
         integrityProperties.getProperty("shell.option"),
         integrityProperties.getProperty("fcheck.path")+integrityProperties.getProperty("fcheck.run")};
-        return cmd;
     }
 }

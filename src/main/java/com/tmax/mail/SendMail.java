@@ -24,13 +24,13 @@ public class SendMail {
             }
         });
     }
-    public void sendMail(){
+    public void sendMail(String errorlog){
         try {
             MimeMessage message = new MimeMessage(session);
             message.setFrom(new InternetAddress(prop.getProperty("sender")));
             message.addRecipient(Message.RecipientType.TO,new InternetAddress(prop.getProperty("sender")));
-            message.setSubject("테스트 메세지");
-            message.setText("테스트 내용");
+            message.setSubject("SuperVM Integrity Error Report");
+            message.setText("Integrity check fail. please confirm Error log.\n" + errorlog);
             Transport.send(message);
             System.out.println("message sent successfully...");
         } catch (MessagingException e) {

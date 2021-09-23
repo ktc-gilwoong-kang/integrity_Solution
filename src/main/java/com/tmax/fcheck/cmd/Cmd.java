@@ -21,7 +21,7 @@ public class Cmd {
  
             // 명령어 실행
             process = runtime.exec(cmd);
- 
+
             // shell 실행이 정상 동작했을 경우
             successBufferReader = new BufferedReader(new InputStreamReader(process.getInputStream(), "EUC-KR"));
  

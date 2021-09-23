@@ -1,14 +1,17 @@
 package com.tmax;
 
 import com.tmax.fcheck.Fcheck;
+import com.tmax.mail.SendMail;
 
 public class IntegrityController {
 
     private Fcheck fcheck;
+    private SendMail sendMail;
     private final int abnormalValue = 10;
 
     public IntegrityController(){
         fcheck = new Fcheck();
+        sendMail = new SendMail();
     }
 
     public void dataUpdate(){
@@ -29,7 +32,7 @@ public class IntegrityController {
             String report = fcheck.fcheckRun();
             if(report.length()>abnormalValue){
                 System.out.println("integrity problem. Detail : ");
-                fcheck.fcheckRunWithLog();
+                sendMail.sendMail(fcheck.fcheckRunWithLog());
                 break;
             }else{
                 System.out.println("System Integrity check success. is stable. ["+System.currentTimeMillis()+"]");
