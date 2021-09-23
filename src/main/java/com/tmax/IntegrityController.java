@@ -19,8 +19,10 @@ public class IntegrityController {
     }
 
     public void run(){
-        if(fcheck.fcheckRun().length() > abnormalValue){
+        String result = fcheck.fcheckRun();
+        if(result.length() > abnormalValue){
             System.out.println("Integrity Error. System is NOT Stable.");
+            sendMail.sendMail(result);
             return;
         }
         periodIntegrityCheck();
