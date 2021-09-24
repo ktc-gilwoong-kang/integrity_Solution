@@ -14,7 +14,7 @@ public class SendMail {
 
     public SendMail(){
         try {
-            prop.load(new FileInputStream("/Users/gilwoongkang/personalLibrary/tmax/supervm-cc/integrity/src/main/java/com/tmax/mail/mailConfig.properties"));
+            prop.load(new FileInputStream("/home/integrity/src/main/java/com/tmax/mail/mailConfig.properties"));
         } catch (IOException e) {
             e.printStackTrace();
         }
