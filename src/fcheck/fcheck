@@ -216,7 +216,7 @@
 #                                                                           #
 #############################################################################
 # This should be passed through the command line, but hard coding still works
-$config="/home/integrity/integrity/src/fcheck/fcheck.cfg";
+$config="/home/integrity/integrity_Solution/src/fcheck/fcheck.cfg";
 #$config="C:/Work/fcheck/fcheck.cfg";
 
 #############################################################################
