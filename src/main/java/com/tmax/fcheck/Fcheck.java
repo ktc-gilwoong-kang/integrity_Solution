@@ -3,17 +3,19 @@ package com.tmax.fcheck;
 
 import com.tmax.fcheck.cmd.Cmd;
 import com.tmax.fcheck.cmd.FcheckCommand;
+import org.apache.log4j.Logger;
 
 public class Fcheck {
     private FcheckCommand fcheckCommand;
-    
+    Logger logger = Logger.getRootLogger();
+
     public Fcheck(){
         fcheckCommand = new FcheckCommand();
     }
 
     public boolean fcheckUpdate(){
         try{
-            Cmd.execute(fcheckCommand.getFcheckUpdateCommand());
+            logger.info(Cmd.execute(fcheckCommand.getFcheckUpdateCommand()));
             return true;
         }catch(Exception e){
             e.printStackTrace();
@@ -22,7 +24,9 @@ public class Fcheck {
     }
     public String fcheckRun(){
         try {
-            return Cmd.execute(fcheckCommand.getFcheckRunCommand());
+            String result = Cmd.execute(fcheckCommand.getFcheckRunCommand());
+            if(!result.equals(""))logger.error(result);
+            return result;
         } catch (Exception e) {
             e.printStackTrace();
             return null;
@@ -30,7 +34,9 @@ public class Fcheck {
     }
     public String fcheckRunWithLog(){
         try {
-            return Cmd.execute(fcheckCommand.getFcheckRunCommandWithoutGrep());
+            String result = Cmd.execute(fcheckCommand.getFcheckRunCommandWithoutGrep());
+            logger.error(result);
+            return result;
         } catch (Exception e) {
             e.printStackTrace();
             return null;

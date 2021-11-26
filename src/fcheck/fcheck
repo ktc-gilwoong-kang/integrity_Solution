@@ -216,7 +216,7 @@
 #                                                                           #
 #############################################################################
 # This should be passed through the command line, but hard coding still works
-$config="/home/integrity/src/fcheck/fcheck.cfg";
+$config="/Users/gilwoongkang/personalLibrary/tmax/supervm-cc/integrity/src/fcheck/fcheck.cfg";
 #$config="C:/Work/fcheck/fcheck.cfg";
 
 #############################################################################

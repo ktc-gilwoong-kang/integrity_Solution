@@ -1,6 +1,7 @@
 package com.tmax.fcheck.cmd;
 
 import exception.CommandExecutionException;
+import org.apache.log4j.Logger;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -15,7 +16,9 @@ public class Cmd {
         BufferedReader successBufferReader = null; // 성공 버퍼
         BufferedReader errorBufferReader = null; // 오류 버퍼
         String msg = null; // 메시지
-        String result = null; // 리턴할 결과 값 
+        String result = null; // 리턴할 결과 값
+
+        Logger logger = Logger.getRootLogger();
 
         try {
  
@@ -40,13 +43,15 @@ public class Cmd {
  
             // shell 실행이 정상 종료되었을 경우
             if (process.exitValue() == 0) {
-                System.out.println(successOutput.toString());
-                result = successOutput.toString();
+//                System.out.println(successOutput.toString());
+                result = successOutput.toString() + errorOutput.toString();
             } else {
                 // shell 실행이 비정상 종료되었을 경우
-                System.out.print("shell exit error value is Not 0 : ");
-                System.out.println(process.exitValue());
-                System.out.println(errorOutput.toString()+successOutput.toString());
+                logger.debug("shell exit error value is Not 0 : " + process.exitValue());
+                if(!errorOutput.toString().equals("") && !successOutput.toString().equals(""))logger.info(errorOutput.toString()+successOutput.toString());
+//                System.out.print("shell exit error value is Not 0 : ");
+//                System.out.println(process.exitValue());
+//                System.out.println(errorOutput.toString()+successOutput.toString());
                 result = successOutput.toString() + errorOutput.toString();
             }
         } catch (IOException e) {
@@ -57,7 +62,8 @@ public class Cmd {
             throw new CommandExecutionException("command execution Interrupt Exception.");
         } finally {
             try {
-                process.destroy(); 
+                process.destroy();
+                logger.debug("process destroy");
                 if (successBufferReader != null) successBufferReader.close();
                 if (errorBufferReader != null) errorBufferReader.close();
             } catch (IOException e1) {
