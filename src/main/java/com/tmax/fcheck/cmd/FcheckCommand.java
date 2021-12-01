@@ -1,13 +1,14 @@
 package com.tmax.fcheck.cmd;
 
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Properties;
 
 public class FcheckCommand {
     private Properties integrityProperties;
-//    private final static String CONFIG_PATH = "/home/integrity/src/main/java/com/tmax/fcheck/cmd/commandConfig.properties";
-    private final static String CONFIG_PATH = "/Users/gilwoongkang/personalLibrary/tmax/supervm-cc/integrity/src/main/java/com/tmax/fcheck/cmd/commandConfig.properties";
+    private final static String CONFIG_PATH = "src/main/java/com/tmax/fcheck/prop/commandConfig.properties";
+//    private final static String CONFIG_PATH = "src/main/resources/prop/commandConfig.properties";
     public FcheckCommand(){
         try{
             integrityProperties = new Properties();
@@ -34,4 +35,9 @@ public class FcheckCommand {
         integrityProperties.getProperty("shell.option"),
         integrityProperties.getProperty("fcheck.path")+integrityProperties.getProperty("fcheck.run")};
     }
+
+    public void setFcheckPath(String newPath){
+        integrityProperties.setProperty("fcheck.path",newPath);
+    }
+    public void reloadFcheckConfig() throws IOException {integrityProperties = new Properties();integrityProperties.load(new FileInputStream(CONFIG_PATH));}
 }

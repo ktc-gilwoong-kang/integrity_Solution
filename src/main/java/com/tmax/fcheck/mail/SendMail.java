@@ -1,4 +1,4 @@
-package com.tmax.mail;
+package com.tmax.fcheck.mail;
 
 import org.apache.log4j.Logger;
 
@@ -6,6 +6,7 @@ import javax.mail.*;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Properties;
 
@@ -18,7 +19,7 @@ public class SendMail {
     public SendMail(){
         try {
 //            prop.load(new FileInputStream("/home/integrity/src/main/java/com/tmax/mail/mailConfig.properties"));
-            prop.load(new FileInputStream("/Users/gilwoongkang/personalLibrary/tmax/supervm-cc/integrity/src/main/java/com/tmax/mail/mailConfig.properties"));
+            prop.load(new FileInputStream("src/main/java/com/tmax/fcheck/prop/mailConfig.properties"));
             logger.info("Prop file load.");
         } catch (IOException e) {
             e.printStackTrace();
@@ -44,5 +45,8 @@ public class SendMail {
         } catch (MessagingException e) {
             e.printStackTrace();
         }
+    }
+    public void configReload() throws IOException {
+        prop.load(new FileInputStream("src/main/java/com/tmax/fcheck/prop/mailConfig.properties"));
     }
 }

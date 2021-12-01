@@ -5,6 +5,8 @@ import com.tmax.fcheck.cmd.Cmd;
 import com.tmax.fcheck.cmd.FcheckCommand;
 import org.apache.log4j.Logger;
 
+import java.io.IOException;
+
 public class Fcheck {
     private FcheckCommand fcheckCommand;
     Logger logger = Logger.getRootLogger();
@@ -41,5 +43,8 @@ public class Fcheck {
             e.printStackTrace();
             return null;
         }
+    }
+    public void configReload() throws IOException {
+        fcheckCommand.reloadFcheckConfig();
     }
 }
